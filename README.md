@@ -1,2 +1,9 @@
-# kuso-NES
-NES Emulator
+# Introduction
+
+The **N**intendo **E**ntertainment **S**ystem (NES) was the world’s most widely used videogames console during the 1980s. From its initial release in 1983 until it was discontinued in 1995, the console brought gaming into more homes than ever before and paved the way for the videogame industry as it stands today. 
+
+Although technology has improved dramatically since the NES, many excellent games were only released on that format and so are unplayable on more modern systems. However these games have been able to survive and continue to be played thanks to **emulation**, which simulates the workings of one system in order to allow software created for it to be used on a modern system. Here is one simple NES emulator written in [Golang](http://golang.org).
+
+# Knows Issues
+
+It doesn't work at all !! (Will be fixed in the following monthes)
