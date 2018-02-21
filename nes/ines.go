@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"fmt"
 )
 
 const NESMagicMumber = 0x1a53454e //"NES\sub"
@@ -58,7 +59,7 @@ func LoadNES(path string) (*Cartridge , error) {
 		trainer := make([]byte,512)
 
 		if _, err := io.ReadFull(file, trainer); err != nil {
-			return nil,err
+			return nil,fmt.Errorf("Error in reading trainer: %v",err)
 		}
 	}
 
@@ -67,15 +68,15 @@ func LoadNES(path string) (*Cartridge , error) {
 	prg :=  make([]byte, int(header.PRGNum)*(16 * (1 << 10)))
 
 	if _,err := io.ReadFull(file,prg); err != nil {
-		return nil,err
+		return nil,fmt.Errorf("Error in reading PRG ROM: %v",err)
 	}
 
 	// CHR -- 8 KB each
 
-	chr := make([]byte,int(header.PRGNum)*(8 * (1 << 10)))
+	chr := make([]byte,int(header.CHRNum)*(8 * (1 << 10)))
 
 	if _,err := io.ReadFull(file,chr); err != nil {
-		return nil,err
+		return nil,fmt.Errorf("Error in reading CHR ROM: %v",err)
 	}
 
 	//Now every thing is OK, return thr cartridge

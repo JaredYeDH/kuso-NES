@@ -13,3 +13,8 @@ type Cartridge struct {
 	Mirror  int
 	Battery bool
 }
+
+func (c *Cartridge) Read(address uint16) byte {
+	idx := int(address - 0x8000) % len(c.PRG)
+	return c.PRG[idx]
+}
