@@ -39,9 +39,9 @@ const (
 // CPU structure
 
 type CPU struct {
-	Cycles	uint16
-	PC		uint16 // program counter
-	SP 		uint16 // stack pointer
+	Cycles	uint64 // Should be big enough
+	PC		uint16 // Program counter
+	SP 		uint16 // Stack pointer
 	A 		byte // Accumulator
 	X		byte // Index Register X
 	Y 		byte // Index Register Y
@@ -80,6 +80,73 @@ func (cpu *CPU) Reset() {
 	cpu.SetFlags(0x24)
 }
 
+// For Debug
+func (c *CPU) DebugPrint() {
+	opcode := c.Read(c.PC)
+	bytes := insSizes[opcode]
+	name := insName[opcode]
+	bytep0 := fmt.Sprintf("%02X",c.Read(c.PC + 0))
+	bytep1 := fmt.Sprintf("%02X",c.Read(c.PC + 1))
+	bytep2 := fmt.Sprintf("%02X",c.Read(c.PC + 2))
+
+	if bytes < 3 {
+		bytep2 = "	"
+	}
+	if bytes < 2 {
+		bytep1 = "	"
+	}
+	fmt.Println()
+	fmt.Printf(
+		"PC: %4X  %s %s %s  %s %28s\n"+
+			"A: %02X\nX: %02X\nY:%02X\nP: %02X\nSP: %02X\nCYC:%3d\n",
+		c.PC, bytep0, bytep1, bytep2, name, "",
+		c.A, c.X, c.Y, c.ReadFlags(), c.SP, (c.Cycles*3)%341)
+	fmt.Println()
+}
+
+// Some basic functions
+
+func (c *CPU) Read16(address uint16) uint16 {
+	l := uint16(c.Read(address))
+	h := uint16(c.Read(address +1))
+
+	return h << 8 | l
+}
+
+// Emulate a bug which is used by those fucking game makers
+func (c *CPU) readbug(address uint16) uint16 {
+	l := uint16(c.Read(address))
+	h := uint16(c.Read((address & 0xFF00) | uint16((byte(address)) + 1)))
+
+	return h << 8 | l
+}
+
+// Common pull/push instrustion
+
+func (c *CPU) push(val byte) {
+	c.Write(0x100 | uint16(c.SP),val)
+	c.SP--
+}
+
+func (c *CPU) pull() byte {
+	c.SP++
+	return c.Read(0x100 | uint16(c.SP))
+}
+
+func (c *CPU) push16(val uint16) {
+	c.push(byte(val >> 8)) // High 8 bit
+	c.push(byte(val & 0xFF)) // Low 8 bit
+}
+
+func (c *CPU) pull16() uint16 {
+	l := uint16(c.pull())
+	h := uint16(c.pull())
+
+	return h << 8 | l
+}
+
+// Functions about flag
+
 func (c *CPU) ReadFlags() byte {
 	var flags byte
 	flags |= c.C << 0
@@ -104,29 +171,158 @@ func (c *CPU) SetFlags(flags byte) {
 	c.N = (flags >> 7) & 1
 }
 
-// For Debug
-func (c *CPU) DebugPrint() {
-	opcode := c.Read(c.PC)
-	bytes := insSizes[opcode]
-	name := insName[opcode]
-	bytep0 := fmt.Sprintf("%02X",c.Read(c.PC + 0))
-	bytep1 := fmt.Sprintf("%02X",c.Read(c.PC + 1))
-	bytep2 := fmt.Sprintf("%02X",c.Read(c.PC + 2))
-
-	if bytes < 3 {
-		bytep2 = "	"
+// setZ sets Z flag if val is equal to 0
+func (c *CPU) setZ(val byte) {
+	if val == 0 {
+		c.Z = 1
+	} else {
+		c.Z = 0
 	}
-	if bytes < 2 {
-		bytep1 = "	"
-	}
-	fmt.Println()
-	fmt.Printf(
-		"PC: %4X  %s %s %s  %s %28s\n"+
-			"A: %02X\nX: %02X\nY:%02X\nP: %02X\nSP: %02X\nCYC:%3d\n",
-		c.PC, bytep0, bytep1, bytep2, name, "",
-		c.A, c.X, c.Y, c.ReadFlags(), c.SP, (c.Cycles*3)%341)
-	fmt.Println()
 }
+
+// setN sets Nflag if val is negative, which means the highest bit is set to 1
+func (c *CPU) setN(val byte) {
+	c.N = val&0x80
+}
+
+// setZN set flag Z and flag N at one "operation"
+func (c *CPU) setZN(val byte) {
+	c.setZ(val)
+	c.setN(val)
+}
+
+
+// Some other functions to make the implementation of the following instructions more easier
+
+// pageDiff tests if a & b reference different pages
+func (c *CPU) pageDiff(a,b uint16) bool {
+	return a & 0xFF00 != b & 0xFF00
+}
+
+// addBCycles adds a cycle for taking branch
+func (c *CPU) addBCycles(info *info) {
+	c.Cycles++
+	if c.pageDiff(info.pc, info.address) {
+		c.Cycles ++
+	}
+}
+
+
+// Now let's run the CPU
+
+// Run run a instrtction each time
+
+func (c *CPU) Run() int {
+	if c.stall >0 {
+		c.stall --
+		return 1
+	}
+
+	cycles := c.Cycles
+
+	// Detect interrupts
+
+	switch c.inter {
+	case interIRQ:
+		c.irq()
+	case interNMI:
+		c.nmi()
+	}
+
+	// Clear interrupt
+	c.inter = interNone
+
+	// Read instruction
+	opcode := c.Read(c.PC)
+	mode := insModes[opcode]
+
+	// Build address for different addressing modes
+	var address uint16
+	var crossed bool
+
+	switch mode {
+	case mAbsolute:
+		address = c.Read16(c.PC + 1)
+	case mAbsoluteX:
+		address = c.Read16(c.PC+1) + uint16(c.X)
+		crossed = c.pageDiff(address-uint16(c.X), address)
+	case mAbsoluteY:
+		address = c.Read16(c.PC+1) + uint16(c.Y)
+		crossed = c.pageDiff(address-uint16(c.Y), address)
+	case mAccumulator:
+		address = 0
+	case mImmediate:
+		address = c.PC + 1
+	case mImplied:
+		address = 0
+	case mIndexedIndirect:
+		address = c.readbug(uint16(c.Read(c.PC+1) + c.X))
+	case mIndirect:
+		address = c.readbug(c.Read16(c.PC + 1))
+	case mIndirectIndexed:
+		address = c.readbug(uint16(c.Read(c.PC+1))) + uint16(c.Y)
+		crossed = c.pageDiff(address-uint16(c.Y), address)
+	case mRelative:
+		offset := uint16(c.Read(c.PC + 1))
+		if offset < 0x80 {
+			address = c.PC + 2 + offset
+		} else {
+			address = c.PC + 2 + offset - 0x100
+		}
+	case mZeroPage:
+		address = uint16(c.Read(c.PC + 1))
+	case mZeroPageX:
+		address = uint16(c.Read(c.PC+1)+c.X) & 0xff
+	case mZeroPageY:
+		address = uint16(c.Read(c.PC+1)+c.Y) & 0xff
+	}
+
+	c.PC += insSizes[opcode]
+
+	c.Cycles += insCycles[opcode]
+	if crossed { // Page crossed is found
+		c.Cycles += insPCycles[opcode]
+	}
+
+	// Build info
+	info := &info{address,c.PC,mode}
+
+	c.ins[opcode](info)
+
+	return int(c.Cycles - cycles) // Should be int...
+}
+
+// Interrupts
+// Non-maskable interrupt
+func (cpu *CPU) tNMI() {
+	cpu.inter = interNMI
+}
+
+// IRQ interrupt
+func (cpu *CPU) tIRQ() {
+	if cpu.I == 0 {
+		cpu.inter = interIRQ
+	}
+}
+
+// NMI Handler
+func (c *CPU) nmi() {
+	c.push16(c.PC)
+	c.php(nil)
+	c.PC = c.Read16(0xFFFA)
+	c.I = 1
+	c.Cycles += 7
+}
+
+// IRQ handler
+func (c *CPU) irq() {
+	c.push16(c.PC)
+	c.php(nil)
+	c.PC = c.Read16(0xFFFE)
+	c.I = 1
+	c.Cycles += 7
+}
+
 
 // Instruction set
 // Ref: http://e-tradition.net/bytes/6502/6502_instruction_set.html
@@ -152,7 +348,7 @@ var insModes = [256]byte {
 	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
 }
 
-var insSizes = [256]byte {
+var insSizes = [256]uint16 {
 	1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
 	2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
 	3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
@@ -171,7 +367,7 @@ var insSizes = [256]byte {
 	2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
 }
 
-var insCycles = [256]byte{
+var insCycles = [256]uint64{
 	7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
 	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 	6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
@@ -190,7 +386,7 @@ var insCycles = [256]byte{
 	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 }
 
-var insPCycles = [256]byte{
+var insPCycles = [256]uint64{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
