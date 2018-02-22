@@ -51,7 +51,7 @@ type CPU struct {
 	D 		byte // Decimal Mode
 	B 		byte // Break Command
 	U 		byte // Ignored FLag
-	O 		byte // Overflow Flag
+	V 		byte // Overflow Flag
 	N 		byte // Negative Flag
 	inter   byte // Interrupt type
 	stall   int  // Cycles to stall
@@ -155,7 +155,7 @@ func (c *CPU) ReadFlags() byte {
 	flags |= c.D << 3
 	flags |= c.B << 4
 	flags |= c.U << 5
-	flags |= c.O << 6
+	flags |= c.V << 6
 	flags |= c.N << 7
 	return flags
 }
@@ -167,7 +167,7 @@ func (c *CPU) SetFlags(flags byte) {
 	c.D = (flags >> 3) & 1
 	c.B = (flags >> 4) & 1
 	c.U = (flags >> 5) & 1
-	c.O = (flags >> 6) & 1
+	c.V = (flags >> 6) & 1
 	c.N = (flags >> 7) & 1
 }
 
@@ -210,7 +210,7 @@ func (c *CPU) addBCycles(info *info) {
 
 // Now let's run the CPU
 
-// Run run a instrtction each time
+// Run run a instruction each time
 
 func (c *CPU) Run() int {
 	if c.stall >0 {
