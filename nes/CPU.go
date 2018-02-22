@@ -41,7 +41,7 @@ const (
 type CPU struct {
 	Cycles	uint64 // Should be big enough
 	PC		uint16 // Program counter
-	SP 		uint16 // Stack pointer
+	SP 		byte // Stack pointer
 	A 		byte // Accumulator
 	X		byte // Index Register X
 	Y 		byte // Index Register Y
@@ -185,8 +185,8 @@ func (c *CPU) setN(val byte) {
 	c.N = val&0x80
 }
 
-// setZN set flag Z and flag N at one "operation"
-func (c *CPU) setZN(val byte) {
+// setNZ set flag Z and flag N at one "operation"
+func (c *CPU) setNZ(val byte) {
 	c.setZ(val)
 	c.setN(val)
 }
@@ -210,7 +210,7 @@ func (c *CPU) addBCycles(info *info) {
 
 // Now let's run the CPU
 
-// Run run a instruction each time
+// Run runs a instruction each time
 
 func (c *CPU) Run() int {
 	if c.stall >0 {
@@ -481,296 +481,616 @@ func (c *CPU) createTable() {
 
 
 // Instructions
-// Instructions by Name:
-// ADC	....	add with carry
-// AND	....	and (with accumulator)
-// ASL	....	arithmetic shift left
-// BCC	....	branch on carry clear
-// BCS	....	branch on carry set
-// BEQ	....	branch on equal (zero set)
-// BIT	....	bit test
-// BMI	....	branch on minus (negative set)
-// BNE	....	branch on not equal (zero clear)
-// BPL	....	branch on plus (negative clear)
-// BRK	....	interrupt
-// BVC	....	branch on overflow clear
-// BVS	....	branch on overflow set
-// CLC	....	clear carry
-// CLD	....	clear decimal
-// CLI	....	clear interrupt disable
-// CLV	....	clear overflow
-// CMP	....	compare (with accumulator)
-// CPX	....	compare with X
-// CPY	....	compare with Y
-// DEC	....	decrement
-// DEX	....	decrement X
-// DEY	....	decrement Y
-// EOR	....	exclusive or (with accumulator)
-// INC	....	increment
-// INX	....	increment X
-// INY	....	increment Y
-// JMP	....	jump
-// JSR	....	jump subroutine
-// LDA	....	load accumulator
-// LDY	....	load X
-// LDY	....	load Y
-// LSR	....	logical shift right
-// NOP	....	no operation
-// ORA	....	or with accumulator
-// PHA	....	push accumulator
-// PHP	....	push processor status (SR)
-// PLA	....	pull accumulator
-// PLP	....	pull processor status (SR)
-// ROL	....	rotate left
-// ROR	....	rotate right
-// RTI	....	return from interrupt
-// RTS	....	return from subroutine
-// SBC	....	subtract with carry
-// SEC	....	set carry
-// SED	....	set decimal
-// SEI	....	set interrupt disable
-// STA	....	store accumulator
-// STX	....	store X
-// STY	....	store Y
-// TAX	....	transfer accumulator to X
-// TAY	....	transfer accumulator to Y
-// TSX	....	transfer stack pointer to X
-// TXA	....	transfer X to accumulator
-// TXS	....	transfer X to stack pointer
-// TYA	....	transfer Y to accumulator
-// EOR  ....    functions should not appear here
 // For more detials ,
 // See: http://e-tradition.net/bytes/6502/6502_instruction_set.html
 // TODO: Implement those functions
 
+
+
+// ADC - Add Memory to Accumulator with Carry
+// A + M + C -> A, C
+// N Z C I D V
+// + + + - - +
 func (c CPU) adc(info *info) {
+	a := c.A
+	m := c.Read(info.address)
+	cf := c.C
 
+	c.A = a + m + cf
+
+	c.setNZ(c.A)
+
+	// Set C flag
+	if uint16(a) + uint16(m) + uint16(cf) > 0xFF {
+		c.C = 1
+	} else {
+		c.C = 0
+	}
+
+	// Set V flag
+	if ((a^m) >> 7) & 1  == 0 && ((a^c.A) >> 7) & 1 != 0 {
+		c.V = 1
+	} else {
+		c.V = 0
+	}
 }
 
+// AND - AND Memory with Accumulator
+// A AND M -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) and(info *info) {
-
+	c.A = c.A | c.Read(info.address)
+	c.setNZ(c.A)
 }
 
+// ASL - Shift Left One Bit (Memory or Accumulator)
+// C <- [76543210] <- 0
+// N Z C I D V
+// + + + - - -
 func (c CPU) asl(info *info) {
-
+	if info.mode == mAccumulator { // Handle Accumulator Mode
+		c.C = (c.A >> 7) & 1
+		c.A = c.A << 1
+		c.setNZ(c.A)
+	} else { // Other Mode
+		val := c.Read(info.address)
+		c.C = (val >> 7) & 1
+		val = val << 1
+		c.Write(info.address, val)
+		c.setNZ(val)
+	}
 }
 
+// BCC - Branch on Carry Clear
+// branch on C = 0
+// N Z C I D V
+// - - - - - -
 func (c CPU) bcc(info *info) {
-
+	if c.C == 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+// BCC - Branch on Carry Clear
+// branch on C = 1
+// N Z C I D V
+// - - - - - -
 func (c CPU) bcs(info *info) {
-
+	if c.C != 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
-func (c CPU) bpl(info *info) {
-
-}
-
+// BEQ - Branch on Result Zero
+// branch on Z = 1
+// N Z C I D V
+// - - - - - -
 func (c CPU) beq(info *info) {
-
+	if c.Z != 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+// BIT - Test Bits in Memory with Accumulator
+// bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V); the zeroflag is set to the result of operand AND accumulator.
+// A AND M, M7 -> N, M6 -> V
+// N Z C I D V
+// M7 + - - - M6
 func (c CPU) bit(info *info) {
+	val := c.Read(info.address)
 
+	c.setZ(val & c.A)
+
+	c.V = (val >> 6) & 1
+	c.N = (val >> 7) & 1
 }
 
+// BMI - Branch on Result Minus
+// branch on N = 1
+// N Z C I D V
+// - - - - - -
 func (c CPU) bmi(info *info) {
-
+	if c.N != 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+// BNE - Branch on Result not Zero
+// branch on Z = 0
+// N Z C I D V
+// - - - - - -
 func (c CPU) bne(info *info) {
-
+	if c.Z == 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
-func (c CPU) brl(info *info) {
-
+// BPL - Branch if Positive
+// branch on N = 0
+// N Z C I D V
+// - - - - - -
+func (c *CPU) bpl(info *info) {
+	if c.N == 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+// BRK - Force Break
+// interrupt, 			N Z C I D V
+// push PC+2, push SR 	- - - 1 - -
 func (c CPU) brk(info *info) {
-
+	c.push16(c.PC)
+	c.php(info)
+	c.sei(info)
+	c.PC = c.Read16(0xFFFE)
 }
 
+// BVC - Branch on Overflow Clear
+// branch on V = 0
+// N Z C I D V
+// - - - - - -
 func (c CPU) bvc(info *info) {
-
+	if c.V == 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+//BVS - Branch on Overflow Set
+// branch on V = 1
+// N Z C I D V
+// - - - - - -
 func (c CPU) bvs(info *info) {
-
+	if c.V != 0 {
+		c.PC = info.address
+		c.addBCycles(info)
+	}
 }
 
+// CLC - Clear Carry Flag
+// 0 -> C
+// N Z C I D V
+// - - 0 - - -
 func (c CPU) clc(info *info) {
-
+	c.C = 0
 }
 
+// CLD - Clear Decimal Mode
+// 0 -> D N Z C I D V
+// - - - - 0 -
 func (c CPU) cld(info *info) {
-
+	c.D = 0
 }
 
+// CLI - Clear Interrupt Disable Bit
+// 0 -> I
+// N Z C I D V
+// - - - 0 - -
 func (c CPU) cli(info *info) {
-
+	c.I = 0
 }
 
+// CLV - Clear Overflow Flag
+// 0 -> V N Z C I D V
+// - - - - - 0
 func (c CPU) clv(info *info) {
-
+	c.V = 0
 }
 
+// compare function for the following 3 functions
+func (c *CPU) compare(a, b byte) {
+	c.setNZ(a - b)
+	if a >= b {
+		c.C = 1
+	} else {
+		c.C = 0
+	}
+}
+
+// CMP - Compare Memory with Accumulator
+// A - M
+// N Z C I D V
+// + + + - - -
 func (c CPU) cmp(info *info) {
-
+	val := c.Read(info.address)
+	c.compare(c.A,val)
 }
 
+// CPX - Compare Memory with IndexX
+// X - M
+// N Z C I D V
+// + + + - - -
 func (c CPU) cpx(info *info) {
-
+	val := c.Read(info.address)
+	c.compare(c.X,val)
 }
 
+// CPY - Compare Memory with IndexY
+// Y - M
+// N Z C I D V
+// + + + - - -
 func (c CPU) cpy(info *info) {
-
+	val := c.Read(info.address)
+	c.compare(c.Y,val)
 }
 
+// DEC - Decrement Memory by One
+// M - 1 -> M
+// N Z C I D V
+// + + - - - -
 func (c CPU) dec(info *info) {
-
+	val := c.Read(info.address) - 1
+	c.Write(info.address,val)
+	c.setNZ(val)
 }
 
+// DEX - Decrement Index X by One
+// X - 1 -> X
+// N Z C I D V
+// + + - - - -
 func (c CPU) dex(info *info) {
-
+	c.X --
+	c.setNZ(c.X)
 }
 
+// DEY - Decrement Index Y by One
+// Y - 1 -> Y
+// N Z C I D V
+// + + - - - -
 func (c CPU) dey(info *info) {
-
+	c.Y --
+	c.setNZ(c.Y)
 }
 
+// EOR - Exclusive-OR Memory with Accumulator
+// A EOR M -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) eor(info *info) {
-
+	val := c.Read(info.address)
+	c.A = c.A ^ val
+	c.setNZ(c.A)
 }
 
+// INC - Increment Memory by One
+// M + 1 -> M
+// N Z C I D V
+// + + - - - -
 func (c CPU) inc(info *info) {
-
+	val := c.Read(info.address) + 1
+	c.Write(info.address,val)
+	c.setNZ(val)
 }
 
+// INX - Increment Index X by One
+// X + 1 -> X
+// N Z C I D V
+// + + - - - -
 func (c CPU) inx(info *info) {
-
+	c.X ++
+	c.setNZ(c.X)
 }
 
+// INY - Increment Index Y by One
+// Y + 1 -> Y
+// N Z C I D V
+// + + - - - -
 func (c CPU) iny(info *info) {
-
+	c.Y ++
+	c.setNZ(c.Y)
 }
 
+// JMP - Jump to New Location
+// N Z C I D V
+// - - - - - -
 func (c CPU) jmp(info *info) {
-
+	c.PC = info.address
 }
 
+// JSR - Jump to New Location Saving Return Address
+// N Z C I D V
+// - - - - - -
 func (c CPU) jsr(info *info) {
-
+	// Saving address...
+	c.push16(c.PC - 1)
+	// And then jump !!
+	c.PC = info.address
 }
 
+// LDA - Load Accumulator with Memory
+// M -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) lda(info *info) {
-
+	c.A = c.Read(info.address)
+	c.setNZ(c.A)
 }
 
+// LDX Load Index X with Memory
+// M -> X
+// N Z C I D V
+// + + - - - -
 func (c CPU) ldx(info *info) {
-
+	c.X = c.Read(info.address)
+	c.setNZ(c.X)
 }
 
+// LDY Load Index Y with Memory
+// M -> Y
+// N Z C I D V
+// + + - - - -
 func (c CPU) ldy(info *info) {
-
+	c.Y = c.Read(info.address)
+	c.setNZ(c.Y)
 }
 
+// LSR - Logical Shift Right
+// 0 -> [76543210] -> C
+// N Z C I D V
+// + + + - - -
 func (c CPU) lsr(info *info) {
-
+		if info.mode == mAccumulator {
+			c.C = c.A & 1
+			c.A >>= 1
+			c.setNZ(c.A)
+		} else {
+			value := c.Read(info.address)
+			c.C = value & 1
+			value >>= 1
+			c.Write(info.address, value)
+			c.setNZ(value)
+		}
 }
 
+// NOP - No Operation
+// ------
+// N Z C I D V
+// - - - - - -
 func (c CPU) nop(info *info) {
-
+	// Indeed .. no operation
 }
 
+// ORA - OR Memory with Accumulator
+// A OR M -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) ora(info *info) {
-
+	val := c.Read(info.address)
+	c.A = c.A | val
+	c.setNZ(c.A)
 }
 
+// PHA - Push Accumulator on Stack
+// push A N Z C I D V
+// - - - - - -
 func (c CPU) pha(info *info) {
-
+	c.push(c.A)
 }
 
+// PHP - Push Processor Status on Stack
+// push SR
+// N Z C I D V
+// - - - - - -
 func (c CPU) php(info *info) {
-
+	c.push(c.ReadFlags() | 0x10)
 }
 
+// PLA - Pull Accumulator from Stack
+// pull A
+// N Z C I D V
+// + + - - - -
 func (c CPU) pla(info *info) {
-
+	c.A = c.pull()
+	c.setNZ(c.A)
 }
 
+// PLP - Pull Processor Status from Stack
+// pull SR
+// N Z C I D V
+// from stack
 func (c CPU) plp(info *info) {
-
+	c.SetFlags((c.pull() & 0xEF | 0x20))
 }
 
+// ROL Rotate One Bit Left (Memory or Accumulator)
+// C <- [76543210] <- C
+// N Z C I D V
+// + + + - - -
 func (c CPU) rol(info *info) {
-
+	if info.mode == mAccumulator {
+		cf := c.C
+		c.C = (c.A >> 7) & 1
+		c.A = (c.A << 1) | cf
+		c.setNZ(c.A)
+	} else {
+		cf := c.C
+		val := c.Read(info.address)
+		c.C = (val >> 7) & 1
+		val = (val << 1) | cf
+		c.Write(info.address, val)
+		c.setNZ(val)
+	}
 }
 
+// ROR - Rotate One Bit Right (Memory or Accumulator)
+// C -> [76543210] -> C
+// N Z C I D V
+// + + + - - -
 func (c CPU) ror(info *info) {
-
+	if info.mode == mAccumulator {
+		cf := c.C
+		c.C = c.A & 1
+		c.A = (c.A >> 1) | (cf << 7)
+		c.setNZ(c.A)
+	} else {
+		cf := c.C
+		value := c.Read(info.address)
+		c.C = value & 1
+		value = (value >> 1) | (cf << 7)
+		c.Write(info.address, value)
+		c.setNZ(value)
+	}
 }
 
+// RTI - Return from Interrupt
+// pull SR, pull PC
+// N Z C I D V
+// from stack
 func (c CPU) rti(info *info) {
-
+	c.plp(info)
+	c.PC = c.pull16()
 }
 
+// RTS - Return from Subroutine
+// pull PC, PC+1 -> PC
+// N Z C I D V
+// - - - - - -
 func (c CPU) rts(info *info) {
-
+	c.PC = c.pull16() + 1
 }
 
+// SBC - Subtract Memory from Accumulator with Borrow
+// A - M - C -> A
+// N Z C I D V
+// + + + - - +
 func (c CPU) sbc(info *info) {
+	a := c.A
+	m := c.Read(info.address)
+	cf := c.C
 
+	c.A = a - m - (1 - cf)
+
+	c.setNZ(c.A)
+
+	// Set C flag
+	if int16(a) + int16(m) + int16(1 - cf) > 0 {
+		c.C = 1
+	} else {
+		c.C = 0
+	}
+
+	// Set V flag
+	if ((a^m) >> 7) & 1  != 0 && ((a^c.A) >> 7) & 1 != 0 {
+		c.V = 1
+	} else {
+		c.V = 0
+	}
 }
 
+// SEC - Set Carry Flag
+// 1 -> C
+// N Z C I D V
+// - - 1 - - -
 func (c CPU) sec(info *info) {
-
+	c.C = 1
 }
 
+// SED - Set Decimal Flag
+// 1 -> D N Z C I D V
+// - - - - 1 -
 func (c CPU) sed(info *info) {
-
+	c.D = 1
 }
 
+// SEI - Set Interrupt Disable Status
+// 1 -> I N Z C I D V
+// - - - 1 - -
 func (c CPU) sei(info *info) {
-
+	c.I = 1
 }
 
+// STA Store Accumulator in Memory
+// A -> M
+// N Z C I D V
+// - - - - - -
 func (c CPU) sta(info *info) {
-
+	c.Write(info.address,c.A)
 }
 
+// STX - Store Index X in Memory
+// X -> M
+// N Z C I D V
+// - - - - - -
 func (c CPU) stx(info *info) {
-
+	c.Write(info.address,c.X)
 }
 
+// STY - Store Index Y in Memory
+// Y -> M
+// N Z C I D V
+// - - - - - -
 func (c CPU) sty(info *info) {
-
+	c.Write(info.address,c.Y)
 }
 
+// TAX - Transfer Accumulator to Index X
+// A -> X
+// N Z C I D V
+// + + - - - -
 func (c CPU) tax(info *info) {
-
+	c.X = c.A
+	c.setNZ(c.X)
 }
 
+// TAY - Transfer Accumulator to Index Y
+// A -> Y
+// N Z C I D V
+// + + - - - -
 func (c CPU) tay(info *info) {
-
+	c.Y = c.A
+	c.setNZ(c.Y)
 }
 
+// TSX - Transfer Accumulator to Index X
+// SP -> X
+// N Z C I D V
+// + + - - - -
 func (c CPU) tsx(info *info) {
-
+	c.X = c.SP
+	c.setNZ(c.X)
 }
 
+// TXA - Transfer Index X to Accumulator
+// X -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) txa(info *info) {
-
+	c.A = c.X
+	c.setNZ(c.A)
 }
 
+// TXS - Transfer Index X to Stack Register
+// X -> SP
+// N Z C I D V
+// + + - - - -
 func (c CPU) txs(info *info) {
-
+	c.SP = c.X
+	c.setNZ(c.SP)
 }
 
+//TYA - Transfer Index Y to Accumulator
+// Y -> A
+// N Z C I D V
+// + + - - - -
 func (c CPU) tya(info *info) {
-
+	c.A = c.Y
+	c.setNZ(c.A)
 }
 
+// ERR - Function for those opcodes which should not appear in ANY iNES roms
+// ------
+// N Z C I D V
+// - - - - - -
 func (c CPU) err(info *info) {
-
+	// What can I do ????
+	// I can just forgive those ancient masters.
+	// Thanks to those NES video game makers, we can have a happy childhood.
+	// QAQ
 }
