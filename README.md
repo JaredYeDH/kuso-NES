@@ -6,26 +6,26 @@ Although technology has improved dramatically since the NES, many excellent game
 
 # TODO List
 
-[] APU
+- [ ] APU
 
-[] Audio Output
+- [ ] Audio Output
 
-[] Cartige
+- [ ] Cartige
 
-[] Console
+- [ ] Console
 
-[x] CPU
+- [x] CPU
 
-[] Input Devices
+- [ ] Input Devices
 
-[] Mapper
+- [ ] Mapper
 
-[] Memory
+- [ ] Memory
 
-[] Palette
+- [ ] Palette
 
-[] PPU
+- [ ] PPU
 
-[] UI
+- [ ] UI
 
-[] Video Ouput
+- [ ] Video Ouput
