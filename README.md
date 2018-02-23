@@ -4,6 +4,28 @@ The **N**intendo **E**ntertainment **S**ystem (NES) was the world’s most widel
 
 Although technology has improved dramatically since the NES, many excellent games were only released on that format and so are unplayable on more modern systems. However these games have been able to survive and continue to be played thanks to **emulation**, which simulates the workings of one system in order to allow software created for it to be used on a modern system. Here is one simple NES emulator written in [Golang](http://golang.org).
 
-# Knows Issues
+# TODO List
 
-It doesn't work at all !! (Will be fixed in the following monthes)
+[] APU
+
+[] Audio Output
+
+[] Cartige
+
+[] Console
+
+[x] CPU
+
+[] Input Devices
+
+[] Mapper
+
+[] Memory
+
+[] Palette
+
+[] PPU
+
+[] UI
+
+[] Video Ouput

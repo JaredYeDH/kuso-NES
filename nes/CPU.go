@@ -85,20 +85,20 @@ func (c *CPU) DebugPrint() {
 	opcode := c.Read(c.PC)
 	bytes := insSizes[opcode]
 	name := insName[opcode]
-	bytep0 := fmt.Sprintf("%02X",c.Read(c.PC + 0))
-	bytep1 := fmt.Sprintf("%02X",c.Read(c.PC + 1))
-	bytep2 := fmt.Sprintf("%02X",c.Read(c.PC + 2))
+	bytep0 := fmt.Sprintf("PC: %02X",c.Read(c.PC + 0))
+	bytep1 := fmt.Sprintf("PC + 1: %02X",c.Read(c.PC + 1))
+	bytep2 := fmt.Sprintf("PC + 2: %02X",c.Read(c.PC + 2))
 
 	if bytes < 3 {
-		bytep2 = "	"
+		bytep2 = "PC + 2: --"
 	}
 	if bytes < 2 {
-		bytep1 = "	"
+		bytep1 = "PC + 1: --"
 	}
 	fmt.Println()
 	fmt.Printf(
-		"PC: %4X  %s %s %s  %s %28s\n"+
-			"A: %02X\nX: %02X\nY:%02X\nP: %02X\nSP: %02X\nCYC:%3d\n",
+		"PC: %04X\n%s\n%s\n%s\nOption: %s %28s\n"+
+			"A: %02X\nX: %02X\nY: %02X\nP: %02X\nSP: %02X\nCYC:%3d\n",
 		c.PC, bytep0, bytep1, bytep2, name, "",
 		c.A, c.X, c.Y, c.ReadFlags(), c.SP, (c.Cycles*3)%341)
 	fmt.Println()
@@ -293,17 +293,6 @@ func (c *CPU) Run() int {
 }
 
 // Interrupts
-// Non-maskable interrupt
-func (cpu *CPU) tNMI() {
-	cpu.inter = interNMI
-}
-
-// IRQ interrupt
-func (cpu *CPU) tIRQ() {
-	if cpu.I == 0 {
-		cpu.inter = interIRQ
-	}
-}
 
 // NMI Handler
 func (c *CPU) nmi() {
@@ -483,7 +472,6 @@ func (c *CPU) createTable() {
 // Instructions
 // For more detials ,
 // See: http://e-tradition.net/bytes/6502/6502_instruction_set.html
-// TODO: Implement those functions
 
 
 
