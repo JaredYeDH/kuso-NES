@@ -74,10 +74,11 @@ func NewCPU(memory Memory) *CPU {
 	return &cpu
 }
 
-func (cpu *CPU) Reset() {
-	cpu.PC = cpu.Read16(0xFFFC)
-	cpu.SP = 0xFD
-	cpu.SetFlags(0x24)
+func (c *CPU) Reset() {
+	c.Cycles = 0
+	c.PC = c.Read16(0xFFFC)
+	c.SP = 0xFD
+	c.SetFlags(0x24)
 }
 
 // For Debug
@@ -182,7 +183,11 @@ func (c *CPU) setZ(val byte) {
 
 // setN sets Nflag if val is negative, which means the highest bit is set to 1
 func (c *CPU) setN(val byte) {
-	c.N = val&0x80
+	if val&0x80 == 0 {
+		c.N = 0
+	} else {
+		c.N = 1
+	}
 }
 
 // setNZ set flag Z and flag N at one "operation"
@@ -395,38 +400,38 @@ var insPCycles = [256]uint64{
 }
 
 var insName = [256]string{
-	"BRK", "ORA", "ERR", "ERR", "NOP", "ORA", "ASL", "ERR",
-	"PHP", "ORA", "ASL", "ERR", "NOP", "ORA", "ASL", "ERR",
-	"BPL", "ORA", "ERR", "ERR", "NOP", "ORA", "ASL", "ERR",
-	"CLC", "ORA", "NOP", "ERR", "NOP", "ORA", "ASL", "ERR",
-	"JSR", "AND", "ERR", "ERR", "BIT", "AND", "ROL", "ERR",
-	"PLP", "AND", "ROL", "ERR", "BIT", "AND", "ROL", "ERR",
-	"BMI", "AND", "ERR", "ERR", "NOP", "AND", "ROL", "ERR",
-	"SEC", "AND", "NOP", "ERR", "NOP", "AND", "ROL", "ERR",
-	"RTI", "EOR", "ERR", "ERR", "NOP", "EOR", "LSR", "ERR",
-	"PHA", "EOR", "LSR", "ERR", "JMP", "EOR", "LSR", "ERR",
-	"BVC", "EOR", "ERR", "ERR", "NOP", "EOR", "LSR", "ERR",
-	"CLI", "EOR", "NOP", "ERR", "NOP", "EOR", "LSR", "ERR",
-	"RTS", "ADC", "ERR", "ERR", "NOP", "ADC", "ROR", "ERR",
-	"PLA", "ADC", "ROR", "ERR", "JMP", "ADC", "ROR", "ERR",
-	"BVS", "ADC", "ERR", "ERR", "NOP", "ADC", "ROR", "ERR",
-	"SEI", "ADC", "NOP", "ERR", "NOP", "ADC", "ROR", "ERR",
-	"NOP", "STA", "NOP", "ERR", "STY", "STA", "STX", "ERR",
-	"DEY", "NOP", "TXA", "ERR", "STY", "STA", "STX", "ERR",
-	"BCC", "STA", "ERR", "ERR", "STY", "STA", "STX", "ERR",
-	"TYA", "STA", "TXS", "ERR", "ERR", "STA", "ERR", "ERR",
-	"LDY", "LDA", "LDX", "ERR", "LDY", "LDA", "LDX", "ERR",
-	"TAY", "LDA", "TAX", "ERR", "LDY", "LDA", "LDX", "ERR",
-	"BCS", "LDA", "ERR", "ERR", "LDY", "LDA", "LDX", "ERR",
-	"CLV", "LDA", "TSX", "ERR", "LDY", "LDA", "LDX", "ERR",
-	"CPY", "CMP", "NOP", "ERR", "CPY", "CMP", "DEC", "ERR",
-	"INY", "CMP", "DEX", "ERR", "CPY", "CMP", "DEC", "ERR",
-	"BNE", "CMP", "ERR", "ERR", "NOP", "CMP", "DEC", "ERR",
-	"CLD", "CMP", "NOP", "ERR", "NOP", "CMP", "DEC", "ERR",
-	"CPX", "SBC", "NOP", "ERR", "CPX", "SBC", "INC", "ERR",
-	"INX", "SBC", "NOP", "SBC", "CPX", "SBC", "INC", "ERR",
-	"BEQ", "SBC", "ERR", "ERR", "NOP", "SBC", "INC", "ERR",
-	"SED", "SBC", "NOP", "ERR", "NOP", "SBC", "INC", "ERR",
+	"BRK", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
+	"PHP", "ORA", "ASL", "ANC", "NOP", "ORA", "ASL", "SLO",
+	"BPL", "ORA", "KIL", "SLO", "NOP", "ORA", "ASL", "SLO",
+	"CLC", "ORA", "NOP", "SLO", "NOP", "ORA", "ASL", "SLO",
+	"JSR", "AND", "KIL", "RLA", "BIT", "AND", "ROL", "RLA",
+	"PLP", "AND", "ROL", "ANC", "BIT", "AND", "ROL", "RLA",
+	"BMI", "AND", "KIL", "RLA", "NOP", "AND", "ROL", "RLA",
+	"SEC", "AND", "NOP", "RLA", "NOP", "AND", "ROL", "RLA",
+	"RTI", "EOR", "KIL", "SRE", "NOP", "EOR", "LSR", "SRE",
+	"PHA", "EOR", "LSR", "ALR", "JMP", "EOR", "LSR", "SRE",
+	"BVC", "EOR", "KIL", "SRE", "NOP", "EOR", "LSR", "SRE",
+	"CLI", "EOR", "NOP", "SRE", "NOP", "EOR", "LSR", "SRE",
+	"RTS", "ADC", "KIL", "RRA", "NOP", "ADC", "ROR", "RRA",
+	"PLA", "ADC", "ROR", "ARR", "JMP", "ADC", "ROR", "RRA",
+	"BVS", "ADC", "KIL", "RRA", "NOP", "ADC", "ROR", "RRA",
+	"SEI", "ADC", "NOP", "RRA", "NOP", "ADC", "ROR", "RRA",
+	"NOP", "STA", "NOP", "SAX", "STY", "STA", "STX", "SAX",
+	"DEY", "NOP", "TXA", "XAA", "STY", "STA", "STX", "SAX",
+	"BCC", "STA", "KIL", "AHX", "STY", "STA", "STX", "SAX",
+	"TYA", "STA", "TXS", "TAS", "SHY", "STA", "SHX", "AHX",
+	"LDY", "LDA", "LDX", "LAX", "LDY", "LDA", "LDX", "LAX",
+	"TAY", "LDA", "TAX", "LAX", "LDY", "LDA", "LDX", "LAX",
+	"BCS", "LDA", "KIL", "LAX", "LDY", "LDA", "LDX", "LAX",
+	"CLV", "LDA", "TSX", "LAS", "LDY", "LDA", "LDX", "LAX",
+	"CPY", "CMP", "NOP", "DCP", "CPY", "CMP", "DEC", "DCP",
+	"INY", "CMP", "DEX", "AXS", "CPY", "CMP", "DEC", "DCP",
+	"BNE", "CMP", "KIL", "DCP", "NOP", "CMP", "DEC", "DCP",
+	"CLD", "CMP", "NOP", "DCP", "NOP", "CMP", "DEC", "DCP",
+	"CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC",
+	"INX", "SBC", "NOP", "SBC", "CPX", "SBC", "INC", "ISC",
+	"BEQ", "SBC", "KIL", "ISC", "NOP", "SBC", "INC", "ISC",
+	"SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
 }
 
 
@@ -479,7 +484,7 @@ func (c *CPU) createTable() {
 // A + M + C -> A, C
 // N Z C I D V
 // + + + - - +
-func (c CPU) adc(info *info) {
+func (c *CPU) adc(info *info) {
 	a := c.A
 	m := c.Read(info.address)
 	cf := c.C
@@ -507,8 +512,8 @@ func (c CPU) adc(info *info) {
 // A AND M -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) and(info *info) {
-	c.A = c.A | c.Read(info.address)
+func (c *CPU) and(info *info) {
+	c.A = c.A & c.Read(info.address)
 	c.setNZ(c.A)
 }
 
@@ -516,7 +521,7 @@ func (c CPU) and(info *info) {
 // C <- [76543210] <- 0
 // N Z C I D V
 // + + + - - -
-func (c CPU) asl(info *info) {
+func (c *CPU) asl(info *info) {
 	if info.mode == mAccumulator { // Handle Accumulator Mode
 		c.C = (c.A >> 7) & 1
 		c.A = c.A << 1
@@ -534,18 +539,18 @@ func (c CPU) asl(info *info) {
 // branch on C = 0
 // N Z C I D V
 // - - - - - -
-func (c CPU) bcc(info *info) {
+func (c *CPU) bcc(info *info) {
 	if c.C == 0 {
 		c.PC = info.address
 		c.addBCycles(info)
 	}
 }
 
-// BCC - Branch on Carry Clear
+// BCS - Branch on Carry Set
 // branch on C = 1
 // N Z C I D V
 // - - - - - -
-func (c CPU) bcs(info *info) {
+func (c *CPU) bcs(info *info) {
 	if c.C != 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -556,7 +561,7 @@ func (c CPU) bcs(info *info) {
 // branch on Z = 1
 // N Z C I D V
 // - - - - - -
-func (c CPU) beq(info *info) {
+func (c *CPU) beq(info *info) {
 	if c.Z != 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -568,20 +573,20 @@ func (c CPU) beq(info *info) {
 // A AND M, M7 -> N, M6 -> V
 // N Z C I D V
 // M7 + - - - M6
-func (c CPU) bit(info *info) {
+func (c *CPU) bit(info *info) {
 	val := c.Read(info.address)
 
 	c.setZ(val & c.A)
+	c.setN(val)
 
 	c.V = (val >> 6) & 1
-	c.N = (val >> 7) & 1
 }
 
 // BMI - Branch on Result Minus
 // branch on N = 1
 // N Z C I D V
 // - - - - - -
-func (c CPU) bmi(info *info) {
+func (c *CPU) bmi(info *info) {
 	if c.N != 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -592,7 +597,7 @@ func (c CPU) bmi(info *info) {
 // branch on Z = 0
 // N Z C I D V
 // - - - - - -
-func (c CPU) bne(info *info) {
+func (c *CPU) bne(info *info) {
 	if c.Z == 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -613,7 +618,7 @@ func (c *CPU) bpl(info *info) {
 // BRK - Force Break
 // interrupt, 			N Z C I D V
 // push PC+2, push SR 	- - - 1 - -
-func (c CPU) brk(info *info) {
+func (c *CPU) brk(info *info) {
 	c.push16(c.PC)
 	c.php(info)
 	c.sei(info)
@@ -624,7 +629,7 @@ func (c CPU) brk(info *info) {
 // branch on V = 0
 // N Z C I D V
 // - - - - - -
-func (c CPU) bvc(info *info) {
+func (c *CPU) bvc(info *info) {
 	if c.V == 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -635,7 +640,7 @@ func (c CPU) bvc(info *info) {
 // branch on V = 1
 // N Z C I D V
 // - - - - - -
-func (c CPU) bvs(info *info) {
+func (c *CPU) bvs(info *info) {
 	if c.V != 0 {
 		c.PC = info.address
 		c.addBCycles(info)
@@ -646,14 +651,14 @@ func (c CPU) bvs(info *info) {
 // 0 -> C
 // N Z C I D V
 // - - 0 - - -
-func (c CPU) clc(info *info) {
+func (c *CPU) clc(info *info) {
 	c.C = 0
 }
 
 // CLD - Clear Decimal Mode
 // 0 -> D N Z C I D V
 // - - - - 0 -
-func (c CPU) cld(info *info) {
+func (c *CPU) cld(info *info) {
 	c.D = 0
 }
 
@@ -661,14 +666,14 @@ func (c CPU) cld(info *info) {
 // 0 -> I
 // N Z C I D V
 // - - - 0 - -
-func (c CPU) cli(info *info) {
+func (c *CPU) cli(info *info) {
 	c.I = 0
 }
 
 // CLV - Clear Overflow Flag
 // 0 -> V N Z C I D V
 // - - - - - 0
-func (c CPU) clv(info *info) {
+func (c *CPU) clv(info *info) {
 	c.V = 0
 }
 
@@ -686,7 +691,7 @@ func (c *CPU) compare(a, b byte) {
 // A - M
 // N Z C I D V
 // + + + - - -
-func (c CPU) cmp(info *info) {
+func (c *CPU) cmp(info *info) {
 	val := c.Read(info.address)
 	c.compare(c.A,val)
 }
@@ -695,7 +700,7 @@ func (c CPU) cmp(info *info) {
 // X - M
 // N Z C I D V
 // + + + - - -
-func (c CPU) cpx(info *info) {
+func (c *CPU) cpx(info *info) {
 	val := c.Read(info.address)
 	c.compare(c.X,val)
 }
@@ -704,7 +709,7 @@ func (c CPU) cpx(info *info) {
 // Y - M
 // N Z C I D V
 // + + + - - -
-func (c CPU) cpy(info *info) {
+func (c *CPU) cpy(info *info) {
 	val := c.Read(info.address)
 	c.compare(c.Y,val)
 }
@@ -713,7 +718,7 @@ func (c CPU) cpy(info *info) {
 // M - 1 -> M
 // N Z C I D V
 // + + - - - -
-func (c CPU) dec(info *info) {
+func (c *CPU) dec(info *info) {
 	val := c.Read(info.address) - 1
 	c.Write(info.address,val)
 	c.setNZ(val)
@@ -723,7 +728,7 @@ func (c CPU) dec(info *info) {
 // X - 1 -> X
 // N Z C I D V
 // + + - - - -
-func (c CPU) dex(info *info) {
+func (c *CPU) dex(info *info) {
 	c.X --
 	c.setNZ(c.X)
 }
@@ -732,7 +737,7 @@ func (c CPU) dex(info *info) {
 // Y - 1 -> Y
 // N Z C I D V
 // + + - - - -
-func (c CPU) dey(info *info) {
+func (c *CPU) dey(info *info) {
 	c.Y --
 	c.setNZ(c.Y)
 }
@@ -741,7 +746,7 @@ func (c CPU) dey(info *info) {
 // A EOR M -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) eor(info *info) {
+func (c *CPU) eor(info *info) {
 	val := c.Read(info.address)
 	c.A = c.A ^ val
 	c.setNZ(c.A)
@@ -751,7 +756,7 @@ func (c CPU) eor(info *info) {
 // M + 1 -> M
 // N Z C I D V
 // + + - - - -
-func (c CPU) inc(info *info) {
+func (c *CPU) inc(info *info) {
 	val := c.Read(info.address) + 1
 	c.Write(info.address,val)
 	c.setNZ(val)
@@ -761,7 +766,7 @@ func (c CPU) inc(info *info) {
 // X + 1 -> X
 // N Z C I D V
 // + + - - - -
-func (c CPU) inx(info *info) {
+func (c *CPU) inx(info *info) {
 	c.X ++
 	c.setNZ(c.X)
 }
@@ -770,7 +775,7 @@ func (c CPU) inx(info *info) {
 // Y + 1 -> Y
 // N Z C I D V
 // + + - - - -
-func (c CPU) iny(info *info) {
+func (c *CPU) iny(info *info) {
 	c.Y ++
 	c.setNZ(c.Y)
 }
@@ -778,14 +783,14 @@ func (c CPU) iny(info *info) {
 // JMP - Jump to New Location
 // N Z C I D V
 // - - - - - -
-func (c CPU) jmp(info *info) {
+func (c *CPU) jmp(info *info) {
 	c.PC = info.address
 }
 
 // JSR - Jump to New Location Saving Return Address
 // N Z C I D V
 // - - - - - -
-func (c CPU) jsr(info *info) {
+func (c *CPU) jsr(info *info) {
 	// Saving address...
 	c.push16(c.PC - 1)
 	// And then jump !!
@@ -796,7 +801,7 @@ func (c CPU) jsr(info *info) {
 // M -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) lda(info *info) {
+func (c *CPU) lda(info *info) {
 	c.A = c.Read(info.address)
 	c.setNZ(c.A)
 }
@@ -805,7 +810,7 @@ func (c CPU) lda(info *info) {
 // M -> X
 // N Z C I D V
 // + + - - - -
-func (c CPU) ldx(info *info) {
+func (c *CPU) ldx(info *info) {
 	c.X = c.Read(info.address)
 	c.setNZ(c.X)
 }
@@ -814,7 +819,7 @@ func (c CPU) ldx(info *info) {
 // M -> Y
 // N Z C I D V
 // + + - - - -
-func (c CPU) ldy(info *info) {
+func (c *CPU) ldy(info *info) {
 	c.Y = c.Read(info.address)
 	c.setNZ(c.Y)
 }
@@ -823,7 +828,7 @@ func (c CPU) ldy(info *info) {
 // 0 -> [76543210] -> C
 // N Z C I D V
 // + + + - - -
-func (c CPU) lsr(info *info) {
+func (c *CPU) lsr(info *info) {
 		if info.mode == mAccumulator {
 			c.C = c.A & 1
 			c.A >>= 1
@@ -841,7 +846,7 @@ func (c CPU) lsr(info *info) {
 // ------
 // N Z C I D V
 // - - - - - -
-func (c CPU) nop(info *info) {
+func (c *CPU) nop(info *info) {
 	// Indeed .. no operation
 }
 
@@ -849,7 +854,7 @@ func (c CPU) nop(info *info) {
 // A OR M -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) ora(info *info) {
+func (c *CPU) ora(info *info) {
 	val := c.Read(info.address)
 	c.A = c.A | val
 	c.setNZ(c.A)
@@ -858,7 +863,7 @@ func (c CPU) ora(info *info) {
 // PHA - Push Accumulator on Stack
 // push A N Z C I D V
 // - - - - - -
-func (c CPU) pha(info *info) {
+func (c *CPU) pha(info *info) {
 	c.push(c.A)
 }
 
@@ -866,7 +871,7 @@ func (c CPU) pha(info *info) {
 // push SR
 // N Z C I D V
 // - - - - - -
-func (c CPU) php(info *info) {
+func (c *CPU) php(info *info) {
 	c.push(c.ReadFlags() | 0x10)
 }
 
@@ -874,7 +879,7 @@ func (c CPU) php(info *info) {
 // pull A
 // N Z C I D V
 // + + - - - -
-func (c CPU) pla(info *info) {
+func (c *CPU) pla(info *info) {
 	c.A = c.pull()
 	c.setNZ(c.A)
 }
@@ -883,7 +888,7 @@ func (c CPU) pla(info *info) {
 // pull SR
 // N Z C I D V
 // from stack
-func (c CPU) plp(info *info) {
+func (c *CPU) plp(info *info) {
 	c.SetFlags((c.pull() & 0xEF | 0x20))
 }
 
@@ -891,7 +896,7 @@ func (c CPU) plp(info *info) {
 // C <- [76543210] <- C
 // N Z C I D V
 // + + + - - -
-func (c CPU) rol(info *info) {
+func (c *CPU) rol(info *info) {
 	if info.mode == mAccumulator {
 		cf := c.C
 		c.C = (c.A >> 7) & 1
@@ -911,7 +916,7 @@ func (c CPU) rol(info *info) {
 // C -> [76543210] -> C
 // N Z C I D V
 // + + + - - -
-func (c CPU) ror(info *info) {
+func (c *CPU) ror(info *info) {
 	if info.mode == mAccumulator {
 		cf := c.C
 		c.C = c.A & 1
@@ -931,7 +936,7 @@ func (c CPU) ror(info *info) {
 // pull SR, pull PC
 // N Z C I D V
 // from stack
-func (c CPU) rti(info *info) {
+func (c *CPU) rti(info *info) {
 	c.plp(info)
 	c.PC = c.pull16()
 }
@@ -940,7 +945,7 @@ func (c CPU) rti(info *info) {
 // pull PC, PC+1 -> PC
 // N Z C I D V
 // - - - - - -
-func (c CPU) rts(info *info) {
+func (c *CPU) rts(info *info) {
 	c.PC = c.pull16() + 1
 }
 
@@ -948,7 +953,7 @@ func (c CPU) rts(info *info) {
 // A - M - C -> A
 // N Z C I D V
 // + + + - - +
-func (c CPU) sbc(info *info) {
+func (c *CPU) sbc(info *info) {
 	a := c.A
 	m := c.Read(info.address)
 	cf := c.C
@@ -958,7 +963,7 @@ func (c CPU) sbc(info *info) {
 	c.setNZ(c.A)
 
 	// Set C flag
-	if int16(a) + int16(m) + int16(1 - cf) > 0 {
+	if int16(a)-int16(m)-int16(1-cf) >= 0 {
 		c.C = 1
 	} else {
 		c.C = 0
@@ -976,21 +981,21 @@ func (c CPU) sbc(info *info) {
 // 1 -> C
 // N Z C I D V
 // - - 1 - - -
-func (c CPU) sec(info *info) {
+func (c *CPU) sec(info *info) {
 	c.C = 1
 }
 
 // SED - Set Decimal Flag
 // 1 -> D N Z C I D V
 // - - - - 1 -
-func (c CPU) sed(info *info) {
+func (c *CPU) sed(info *info) {
 	c.D = 1
 }
 
 // SEI - Set Interrupt Disable Status
 // 1 -> I N Z C I D V
 // - - - 1 - -
-func (c CPU) sei(info *info) {
+func (c *CPU) sei(info *info) {
 	c.I = 1
 }
 
@@ -998,7 +1003,7 @@ func (c CPU) sei(info *info) {
 // A -> M
 // N Z C I D V
 // - - - - - -
-func (c CPU) sta(info *info) {
+func (c *CPU) sta(info *info) {
 	c.Write(info.address,c.A)
 }
 
@@ -1006,7 +1011,7 @@ func (c CPU) sta(info *info) {
 // X -> M
 // N Z C I D V
 // - - - - - -
-func (c CPU) stx(info *info) {
+func (c *CPU) stx(info *info) {
 	c.Write(info.address,c.X)
 }
 
@@ -1014,7 +1019,7 @@ func (c CPU) stx(info *info) {
 // Y -> M
 // N Z C I D V
 // - - - - - -
-func (c CPU) sty(info *info) {
+func (c *CPU) sty(info *info) {
 	c.Write(info.address,c.Y)
 }
 
@@ -1022,7 +1027,7 @@ func (c CPU) sty(info *info) {
 // A -> X
 // N Z C I D V
 // + + - - - -
-func (c CPU) tax(info *info) {
+func (c *CPU) tax(info *info) {
 	c.X = c.A
 	c.setNZ(c.X)
 }
@@ -1031,7 +1036,7 @@ func (c CPU) tax(info *info) {
 // A -> Y
 // N Z C I D V
 // + + - - - -
-func (c CPU) tay(info *info) {
+func (c *CPU) tay(info *info) {
 	c.Y = c.A
 	c.setNZ(c.Y)
 }
@@ -1040,7 +1045,7 @@ func (c CPU) tay(info *info) {
 // SP -> X
 // N Z C I D V
 // + + - - - -
-func (c CPU) tsx(info *info) {
+func (c *CPU) tsx(info *info) {
 	c.X = c.SP
 	c.setNZ(c.X)
 }
@@ -1049,7 +1054,7 @@ func (c CPU) tsx(info *info) {
 // X -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) txa(info *info) {
+func (c *CPU) txa(info *info) {
 	c.A = c.X
 	c.setNZ(c.A)
 }
@@ -1058,7 +1063,7 @@ func (c CPU) txa(info *info) {
 // X -> SP
 // N Z C I D V
 // + + - - - -
-func (c CPU) txs(info *info) {
+func (c *CPU) txs(info *info) {
 	c.SP = c.X
 	c.setNZ(c.SP)
 }
@@ -1067,7 +1072,7 @@ func (c CPU) txs(info *info) {
 // Y -> A
 // N Z C I D V
 // + + - - - -
-func (c CPU) tya(info *info) {
+func (c *CPU) tya(info *info) {
 	c.A = c.Y
 	c.setNZ(c.A)
 }
@@ -1076,7 +1081,7 @@ func (c CPU) tya(info *info) {
 // ------
 // N Z C I D V
 // - - - - - -
-func (c CPU) err(info *info) {
+func (c *CPU) err(info *info) {
 	// What can I do ????
 	// I can just forgive those ancient masters.
 	// Thanks to those NES video game makers, we can have a happy childhood.

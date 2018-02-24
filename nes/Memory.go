@@ -19,25 +19,28 @@ func NewCPUMemory(nes *NES) Memory {
 }
 
 func (mem *CPUMemory)Read(address uint16) byte {
-	if address < 0x2000 {
-		return mem.RAM[address % 0x0800]
-	} else if address >= 0x8000 {
+	switch {
+	case address < 0x2000:
+		return mem.RAM[address%0x0800]
+	case address >= 0x6000:
 		return mem.NES.Cartridge.Read(address)
-	} else {
-		return 0 // Failed
+	default:
+		return 0
 	}
 }
 
-func (mem *CPUMemory) Write(address uint16, value byte) {
+func (mem *CPUMemory) Write(address uint16, val byte) {
 	switch {
 	case address < 0x2000:
-		mem.RAM[address%0x0800] = value
+		mem.RAM[address%0x0800] = val
+	case address >= 0x6000:
+		mem.NES.Cartridge.Write(address,val)
 	}
 }
 
 func (mem *CPUMemory) Read16(address uint16) uint16 {
 	l := uint16(mem.Read(address))
-	h := uint16(mem.Read(address))
+	h := uint16(mem.Read(address + 1))
 
-	return (h << 8 | l)
+	return h << 8 | l
 }

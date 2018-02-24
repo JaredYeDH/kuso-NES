@@ -79,8 +79,12 @@ func LoadNES(path string) (*Cartridge , error) {
 		return nil,fmt.Errorf("Error in reading CHR ROM: %v",err)
 	}
 
+	// SRAM -- 8 KB each
+
+	sram := make([]byte,(8 * (1 << 10)))
+
 	//Now every thing is OK, return thr cartridge
 
-	cartridge := Cartridge{prg, chr, mapper, mirror, battery}
+	cartridge := Cartridge{prg, chr, sram,mapper, mirror, battery}
 	return &cartridge, nil
 }
