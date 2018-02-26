@@ -1,12 +1,12 @@
 package main
 
 import (
-	"os"
 	"github.com/kuso-kodo/kuso-NES/ui"
 	"image/jpeg"
 	"image/png"
-	"strings"
 	"log"
+	"os"
+	"strings"
 )
 
 const (
@@ -19,27 +19,27 @@ const (
 
 func main() {
 
-	argv := "assets/"+os.Args[1]
-	if strings.HasSuffix(os.Args[1],"PNG") || strings.HasSuffix(os.Args[1],"png") {
+	argv := "assets/" + os.Args[1]
+	if strings.HasSuffix(os.Args[1], "PNG") || strings.HasSuffix(os.Args[1], "png") {
 		ui.Run(os.Args[1])
 	} else {
-		file,err := os.Open(argv)
+		file, err := os.Open(argv)
 		if err != nil {
-			log.Printf("Readind file %s error:" + err.Error(), os.Args[1])
+			log.Printf("Readind file %s error:"+err.Error(), os.Args[1])
 		}
 
-		image,err := jpeg.Decode(file)
+		image, err := jpeg.Decode(file)
 
 		if err != nil {
 			log.Printf("Decoding jpeg file error:" + err.Error())
 		}
 
-		write,err := os.Create(argv+".png")
+		write, err := os.Create(argv + ".png")
 		if err != nil {
-			log.Printf("Writing file %s error:" + err.Error(), os.Args[1])
+			log.Printf("Writing file %s error:"+err.Error(), os.Args[1])
 		}
 
-		png.Encode(write,image)
-		ui.Run(os.Args[1]+ ".png")
+		png.Encode(write, image)
+		ui.Run(os.Args[1] + ".png")
 	}
 }

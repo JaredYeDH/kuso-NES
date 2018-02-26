@@ -1,20 +1,20 @@
 package ui
 
 import (
-	"engo.io/engo"
 	"engo.io/ecs"
+	"engo.io/engo"
+	"engo.io/engo/common"
+	"fmt"
 	"image"
 	"image/png"
-	"os"
 	"log"
-	"fmt"
-	"engo.io/engo/common"
+	"os"
 )
 
 type NESVideo struct {
 	filename string
-	width		int
-	height		int
+	width    int
+	height   int
 }
 
 type Frame struct {
@@ -27,14 +27,14 @@ func (n *NESVideo) Preload() {
 	err := engo.Files.Load(n.filename)
 
 	if err != nil {
-		log.Panic("Preload: "+ err.Error())
+		log.Panic("Preload: " + err.Error())
 	}
 }
 
 func (n *NESVideo) Setup(world *ecs.World) {
 	world.AddSystem(new(common.RenderSystem))
 
-	frame := Frame{BasicEntity:ecs.NewBasic()}
+	frame := Frame{BasicEntity: ecs.NewBasic()}
 
 	frame.SpaceComponent = common.SpaceComponent{
 		Position: engo.Point{0, 0},
@@ -67,28 +67,28 @@ func (n *NESVideo) Type() string {
 
 func Run(path string) {
 
-	file,err := os.Open("assets/" + path)
+	file, err := os.Open("assets/" + path)
 
 	if err != nil {
-		log.Fatalf("Open file error: %v",err)
+		log.Fatalf("Open file error: %v", err)
 	}
 
 	log.Println("File loaded.")
 	var config image.Config
 
-	config,err = png.DecodeConfig(file)
+	config, err = png.DecodeConfig(file)
 
-		if err != nil {
-			log.Fatalf("Read png config error: %v",err)
-		}
+	if err != nil {
+		log.Fatalf("Read png config error: %v", err)
+	}
 	file.Close()
 	log.Println("Config readed.")
 
 	opts := engo.RunOptions{
-		Title: fmt.Sprintf("%v - kuso-NES",path),
-		Width: config.Width,
+		Title:  fmt.Sprintf("%v - kuso-NES", path),
+		Width:  config.Width,
 		Height: config.Height,
 	}
 
-	engo.Run(opts,&NESVideo{path,config.Width,config.Height})
+	engo.Run(opts, &NESVideo{path, config.Width, config.Height})
 }

@@ -1,12 +1,12 @@
 package nes
 
 import (
-	"testing"
 	"log"
 	"strings"
+	"testing"
 )
 
-func (c *CPU)ReadString(address uint16) string {
+func (c *CPU) ReadString(address uint16) string {
 	var s []byte
 	for {
 		char := c.Read(address)
@@ -15,8 +15,8 @@ func (c *CPU)ReadString(address uint16) string {
 			break
 		}
 
-		s = append(s,char)
-		address ++
+		s = append(s, char)
+		address++
 	}
 
 	return string(s)
@@ -26,7 +26,7 @@ func (c *CPU)ReadString(address uint16) string {
 
 func TestOfficialInstructions(t *testing.T) {
 
-	nes , err := NewNES("official_only.nes")
+	nes, err := NewNES("official_only.nes")
 
 	if err != nil {
 		t.Fatal(err)
@@ -47,4 +47,3 @@ func TestOfficialInstructions(t *testing.T) {
 		}
 	}
 }
-

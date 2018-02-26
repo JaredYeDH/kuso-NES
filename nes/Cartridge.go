@@ -9,7 +9,7 @@ const (
 type Cartridge struct {
 	PRG     []byte
 	CHR     []byte
-	SRAM	[]byte
+	SRAM    []byte
 	Mapper  int
 	Mirror  int
 	Battery bool

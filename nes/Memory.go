@@ -14,11 +14,11 @@ type CPUMemory struct {
 }
 
 func NewCPUMemory(nes *NES) Memory {
-	ram := make([]byte,2048)
-	return &CPUMemory{nes,ram}
+	ram := make([]byte, 2048)
+	return &CPUMemory{nes, ram}
 }
 
-func (mem *CPUMemory)Read(address uint16) byte {
+func (mem *CPUMemory) Read(address uint16) byte {
 	switch {
 	case address < 0x2000:
 		return mem.RAM[address%0x0800]
@@ -34,7 +34,7 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 	case address < 0x2000:
 		mem.RAM[address%0x0800] = val
 	case address >= 0x6000:
-		mem.NES.Cartridge.Write(address,val)
+		mem.NES.Cartridge.Write(address, val)
 	}
 }
 
@@ -42,5 +42,5 @@ func (mem *CPUMemory) Read16(address uint16) uint16 {
 	l := uint16(mem.Read(address))
 	h := uint16(mem.Read(address + 1))
 
-	return h << 8 | l
+	return h<<8 | l
 }

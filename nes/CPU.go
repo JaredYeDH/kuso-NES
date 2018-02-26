@@ -8,7 +8,6 @@ import "fmt"
 
 const CPUFrequency = 1789773 // From http://wiki.nesdev.com/w/index.php/CPU
 
-
 // Interrupt type
 
 const (
@@ -39,36 +38,36 @@ const (
 // CPU structure
 
 type CPU struct {
-	Cycles	uint64 // Should be big enough
-	PC		uint16 // Program counter
-	SP 		byte // Stack pointer
-	A 		byte // Accumulator
-	X		byte // Index Register X
-	Y 		byte // Index Register Y
-	C 		byte // Carry FLag
-	Z 		byte // Zero Flag
-	I 		byte // Interrupt Disable
-	D 		byte // Decimal Mode
-	B 		byte // Break Command
-	U 		byte // Ignored FLag
-	V 		byte // Overflow Flag
-	N 		byte // Negative Flag
-	inter   byte // Interrupt type
-	stall   int  // Cycles to stall
-	ins     [256]func(*info) // Function table
-	Memory		 //Memory Interface
+	Cycles uint64           // Should be big enough
+	PC     uint16           // Program counter
+	SP     byte             // Stack pointer
+	A      byte             // Accumulator
+	X      byte             // Index Register X
+	Y      byte             // Index Register Y
+	C      byte             // Carry FLag
+	Z      byte             // Zero Flag
+	I      byte             // Interrupt Disable
+	D      byte             // Decimal Mode
+	B      byte             // Break Command
+	U      byte             // Ignored FLag
+	V      byte             // Overflow Flag
+	N      byte             // Negative Flag
+	inter  byte             // Interrupt type
+	stall  int              // Cycles to stall
+	ins    [256]func(*info) // Function table
+	Memory                  //Memory Interface
 }
 
 // CPU operations
 
 type info struct {
 	address uint16
-	pc uint16
-	mode byte
+	pc      uint16
+	mode    byte
 }
 
 func NewCPU(memory Memory) *CPU {
-	cpu := CPU{Memory:memory}
+	cpu := CPU{Memory: memory}
 	cpu.createTable()
 	cpu.Reset()
 	return &cpu
@@ -86,9 +85,9 @@ func (c *CPU) DebugPrint() {
 	opcode := c.Read(c.PC)
 	bytes := insSizes[opcode]
 	name := insName[opcode]
-	bytep0 := fmt.Sprintf("PC: %02X",c.Read(c.PC + 0))
-	bytep1 := fmt.Sprintf("PC + 1: %02X",c.Read(c.PC + 1))
-	bytep2 := fmt.Sprintf("PC + 2: %02X",c.Read(c.PC + 2))
+	bytep0 := fmt.Sprintf("PC: %02X", c.Read(c.PC+0))
+	bytep1 := fmt.Sprintf("PC + 1: %02X", c.Read(c.PC+1))
+	bytep2 := fmt.Sprintf("PC + 2: %02X", c.Read(c.PC+2))
 
 	if bytes < 3 {
 		bytep2 = "PC + 2: --"
@@ -109,23 +108,23 @@ func (c *CPU) DebugPrint() {
 
 func (c *CPU) Read16(address uint16) uint16 {
 	l := uint16(c.Read(address))
-	h := uint16(c.Read(address +1))
+	h := uint16(c.Read(address + 1))
 
-	return h << 8 | l
+	return h<<8 | l
 }
 
 // Emulate a bug which is used by those fucking game makers
 func (c *CPU) readbug(address uint16) uint16 {
 	l := uint16(c.Read(address))
-	h := uint16(c.Read((address & 0xFF00) | uint16((byte(address)) + 1)))
+	h := uint16(c.Read((address & 0xFF00) | uint16((byte(address))+1)))
 
-	return h << 8 | l
+	return h<<8 | l
 }
 
 // Common pull/push instrustion
 
 func (c *CPU) push(val byte) {
-	c.Write(0x100 | uint16(c.SP),val)
+	c.Write(0x100|uint16(c.SP), val)
 	c.SP--
 }
 
@@ -135,7 +134,7 @@ func (c *CPU) pull() byte {
 }
 
 func (c *CPU) push16(val uint16) {
-	c.push(byte(val >> 8)) // High 8 bit
+	c.push(byte(val >> 8))   // High 8 bit
 	c.push(byte(val & 0xFF)) // Low 8 bit
 }
 
@@ -143,7 +142,7 @@ func (c *CPU) pull16() uint16 {
 	l := uint16(c.pull())
 	h := uint16(c.pull())
 
-	return h << 8 | l
+	return h<<8 | l
 }
 
 // Functions about flag
@@ -196,30 +195,28 @@ func (c *CPU) setNZ(val byte) {
 	c.setN(val)
 }
 
-
 // Some other functions to make the implementation of the following instructions more easier
 
 // pageDiff tests if a & b reference different pages
-func (c *CPU) pageDiff(a,b uint16) bool {
-	return a & 0xFF00 != b & 0xFF00
+func (c *CPU) pageDiff(a, b uint16) bool {
+	return a&0xFF00 != b&0xFF00
 }
 
 // addBCycles adds a cycle for taking branch
 func (c *CPU) addBCycles(info *info) {
 	c.Cycles++
 	if c.pageDiff(info.pc, info.address) {
-		c.Cycles ++
+		c.Cycles++
 	}
 }
-
 
 // Now let's run the CPU
 
 // Run runs a instruction each time
 
 func (c *CPU) Run() int {
-	if c.stall >0 {
-		c.stall --
+	if c.stall > 0 {
+		c.stall--
 		return 1
 	}
 
@@ -290,7 +287,7 @@ func (c *CPU) Run() int {
 	}
 
 	// Build info
-	info := &info{address,c.PC,mode}
+	info := &info{address, c.PC, mode}
 
 	c.ins[opcode](info)
 
@@ -317,13 +314,12 @@ func (c *CPU) irq() {
 	c.Cycles += 7
 }
 
-
 // Instruction set
 // Ref: http://e-tradition.net/bytes/6502/6502_instruction_set.html
 // As arrays.
 // AUTO GENERATED.
 
-var insModes = [256]byte {
+var insModes = [256]byte{
 	6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
 	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
 	1, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
@@ -342,7 +338,7 @@ var insModes = [256]byte {
 	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
 }
 
-var insSizes = [256]uint16 {
+var insSizes = [256]uint16{
 	1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
 	2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
 	3, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
@@ -434,7 +430,6 @@ var insName = [256]string{
 	"SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
 }
 
-
 func (c *CPU) createTable() {
 	c.ins = [256]func(*info){
 		c.brk, c.ora, c.err, c.err, c.nop, c.ora, c.asl, c.err,
@@ -472,13 +467,9 @@ func (c *CPU) createTable() {
 	}
 }
 
-
-
 // Instructions
 // For more detials ,
 // See: http://e-tradition.net/bytes/6502/6502_instruction_set.html
-
-
 
 // ADC - Add Memory to Accumulator with Carry
 // A + M + C -> A, C
@@ -494,14 +485,14 @@ func (c *CPU) adc(info *info) {
 	c.setNZ(c.A)
 
 	// Set C flag
-	if uint16(a) + uint16(m) + uint16(cf) > 0xFF {
+	if uint16(a)+uint16(m)+uint16(cf) > 0xFF {
 		c.C = 1
 	} else {
 		c.C = 0
 	}
 
 	// Set V flag
-	if ((a^m) >> 7) & 1  == 0 && ((a^c.A) >> 7) & 1 != 0 {
+	if ((a^m)>>7)&1 == 0 && ((a^c.A)>>7)&1 != 0 {
 		c.V = 1
 	} else {
 		c.V = 0
@@ -693,7 +684,7 @@ func (c *CPU) compare(a, b byte) {
 // + + + - - -
 func (c *CPU) cmp(info *info) {
 	val := c.Read(info.address)
-	c.compare(c.A,val)
+	c.compare(c.A, val)
 }
 
 // CPX - Compare Memory with IndexX
@@ -702,7 +693,7 @@ func (c *CPU) cmp(info *info) {
 // + + + - - -
 func (c *CPU) cpx(info *info) {
 	val := c.Read(info.address)
-	c.compare(c.X,val)
+	c.compare(c.X, val)
 }
 
 // CPY - Compare Memory with IndexY
@@ -711,7 +702,7 @@ func (c *CPU) cpx(info *info) {
 // + + + - - -
 func (c *CPU) cpy(info *info) {
 	val := c.Read(info.address)
-	c.compare(c.Y,val)
+	c.compare(c.Y, val)
 }
 
 // DEC - Decrement Memory by One
@@ -720,7 +711,7 @@ func (c *CPU) cpy(info *info) {
 // + + - - - -
 func (c *CPU) dec(info *info) {
 	val := c.Read(info.address) - 1
-	c.Write(info.address,val)
+	c.Write(info.address, val)
 	c.setNZ(val)
 }
 
@@ -729,7 +720,7 @@ func (c *CPU) dec(info *info) {
 // N Z C I D V
 // + + - - - -
 func (c *CPU) dex(info *info) {
-	c.X --
+	c.X--
 	c.setNZ(c.X)
 }
 
@@ -738,7 +729,7 @@ func (c *CPU) dex(info *info) {
 // N Z C I D V
 // + + - - - -
 func (c *CPU) dey(info *info) {
-	c.Y --
+	c.Y--
 	c.setNZ(c.Y)
 }
 
@@ -758,7 +749,7 @@ func (c *CPU) eor(info *info) {
 // + + - - - -
 func (c *CPU) inc(info *info) {
 	val := c.Read(info.address) + 1
-	c.Write(info.address,val)
+	c.Write(info.address, val)
 	c.setNZ(val)
 }
 
@@ -767,7 +758,7 @@ func (c *CPU) inc(info *info) {
 // N Z C I D V
 // + + - - - -
 func (c *CPU) inx(info *info) {
-	c.X ++
+	c.X++
 	c.setNZ(c.X)
 }
 
@@ -776,7 +767,7 @@ func (c *CPU) inx(info *info) {
 // N Z C I D V
 // + + - - - -
 func (c *CPU) iny(info *info) {
-	c.Y ++
+	c.Y++
 	c.setNZ(c.Y)
 }
 
@@ -829,17 +820,17 @@ func (c *CPU) ldy(info *info) {
 // N Z C I D V
 // + + + - - -
 func (c *CPU) lsr(info *info) {
-		if info.mode == mAccumulator {
-			c.C = c.A & 1
-			c.A >>= 1
-			c.setNZ(c.A)
-		} else {
-			value := c.Read(info.address)
-			c.C = value & 1
-			value >>= 1
-			c.Write(info.address, value)
-			c.setNZ(value)
-		}
+	if info.mode == mAccumulator {
+		c.C = c.A & 1
+		c.A >>= 1
+		c.setNZ(c.A)
+	} else {
+		value := c.Read(info.address)
+		c.C = value & 1
+		value >>= 1
+		c.Write(info.address, value)
+		c.setNZ(value)
+	}
 }
 
 // NOP - No Operation
@@ -889,7 +880,7 @@ func (c *CPU) pla(info *info) {
 // N Z C I D V
 // from stack
 func (c *CPU) plp(info *info) {
-	c.SetFlags((c.pull() & 0xEF | 0x20))
+	c.SetFlags((c.pull()&0xEF | 0x20))
 }
 
 // ROL Rotate One Bit Left (Memory or Accumulator)
@@ -970,7 +961,7 @@ func (c *CPU) sbc(info *info) {
 	}
 
 	// Set V flag
-	if ((a^m) >> 7) & 1  != 0 && ((a^c.A) >> 7) & 1 != 0 {
+	if ((a^m)>>7)&1 != 0 && ((a^c.A)>>7)&1 != 0 {
 		c.V = 1
 	} else {
 		c.V = 0
@@ -1004,7 +995,7 @@ func (c *CPU) sei(info *info) {
 // N Z C I D V
 // - - - - - -
 func (c *CPU) sta(info *info) {
-	c.Write(info.address,c.A)
+	c.Write(info.address, c.A)
 }
 
 // STX - Store Index X in Memory
@@ -1012,7 +1003,7 @@ func (c *CPU) sta(info *info) {
 // N Z C I D V
 // - - - - - -
 func (c *CPU) stx(info *info) {
-	c.Write(info.address,c.X)
+	c.Write(info.address, c.X)
 }
 
 // STY - Store Index Y in Memory
@@ -1020,7 +1011,7 @@ func (c *CPU) stx(info *info) {
 // N Z C I D V
 // - - - - - -
 func (c *CPU) sty(info *info) {
-	c.Write(info.address,c.Y)
+	c.Write(info.address, c.Y)
 }
 
 // TAX - Transfer Accumulator to Index X
