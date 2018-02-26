@@ -24,7 +24,7 @@ func (c *CPU)ReadString(address uint16) string {
 
 // File from : http://blargg.8bitalley.com/nes-tests/instr_test-v5.zip
 
-func Test03(t *testing.T) {
+func TestOfficialInstructions(t *testing.T) {
 
 	nes , err := NewNES("official_only.nes")
 

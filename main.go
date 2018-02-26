@@ -1,31 +1,45 @@
 package main
 
 import (
-	"log"
 	"os"
-	"github.com/kuso-kodo/kuso-NES/nes"
+	"github.com/kuso-kodo/kuso-NES/ui"
+	"image/jpeg"
+	"image/png"
+	"strings"
+	"log"
 )
 
 const (
 	EXEC_SUCCESS = iota
 	EXEC_FAILED
 )
-// At this time , the usage of main.go is to test wether we can read instructions from aan iNES file properly.
+
+// At this time , the usage of main.go is to test whether we can read a png/jpeg file and show it properly.
 // Usage: kuso-NES <file name>
 
 func main() {
 
-	nes,err := nes.NewNES(os.Args[1])
+	argv := "assets/"+os.Args[1]
+	if strings.HasSuffix(os.Args[1],"PNG") || strings.HasSuffix(os.Args[1],"png") {
+		ui.Run(os.Args[1])
+	} else {
+		file,err := os.Open(argv)
+		if err != nil {
+			log.Printf("Readind file %s error:" + err.Error(), os.Args[1])
+		}
 
-	if err != nil {
-		log.Fatalln(err)
-		os.Exit(EXEC_FAILED)
-	}
+		image,err := jpeg.Decode(file)
 
-	log.Printf("Read iNES file : %s\n",os.Args[1])
+		if err != nil {
+			log.Printf("Decoding jpeg file error:" + err.Error())
+		}
 
-	for i := 0 ; i < 0xFF ; i ++ {
-		nes.CPU.DebugPrint()
-		nes.CPU.Run()
+		write,err := os.Create(argv+".png")
+		if err != nil {
+			log.Printf("Writing file %s error:" + err.Error(), os.Args[1])
+		}
+
+		png.Encode(write,image)
+		ui.Run(os.Args[1]+ ".png")
 	}
 }
