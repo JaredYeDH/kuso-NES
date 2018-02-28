@@ -66,7 +66,7 @@ func NewPPUMemory(nes *NES) Memory {
 	return &PPUMemory{nes}
 }
 
-func (mem *PPUMemory) Read(address uint16)  byte {
+func (mem *PPUMemory) Read(address uint16) byte {
 	switch {
 	case address < 0x2000:
 		return mem.nes.Cartridge.Read(address)
@@ -79,7 +79,7 @@ func (mem *PPUMemory) Read(address uint16)  byte {
 	}
 }
 
-func (mem *PPUMemory) Write(address uint16,val byte) {
+func (mem *PPUMemory) Write(address uint16, val byte) {
 	address %= 0x4000
 	switch {
 	case address < 0x2000:

@@ -298,8 +298,8 @@ func (c *CPU) Run() int {
 // For PPU
 // NMI interrupt
 func (c *CPU) tNMI() {
-		c.inter = interNMI
-	}
+	c.inter = interNMI
+}
 
 // IRQ interrupt
 func (c *CPU) tIRQ() {
