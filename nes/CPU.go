@@ -295,6 +295,18 @@ func (c *CPU) Run() int {
 }
 
 // Interrupts
+// For PPU
+// NMI interrupt
+func (c *CPU) tNMI() {
+		c.inter = interNMI
+	}
+
+// IRQ interrupt
+func (c *CPU) tIRQ() {
+	if c.I == 0 {
+		c.inter = interIRQ
+	}
+}
 
 // NMI Handler
 func (c *CPU) nmi() {
@@ -880,7 +892,7 @@ func (c *CPU) pla(info *info) {
 // N Z C I D V
 // from stack
 func (c *CPU) plp(info *info) {
-	c.SetFlags((c.pull()&0xEF | 0x20))
+	c.SetFlags(c.pull()&0xEF | 0x20)
 }
 
 // ROL Rotate One Bit Left (Memory or Accumulator)

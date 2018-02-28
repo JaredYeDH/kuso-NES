@@ -5,6 +5,10 @@ package nes
 type NES struct {
 	CPU       *CPU
 	Cartridge *Cartridge
+	PPU		*PPU
+	RAM []byte
+	CPUMemory Memory
+	PPUMemory Memory
 }
 
 func NewNES(path string) (*NES, error) {
@@ -14,9 +18,12 @@ func NewNES(path string) (*NES, error) {
 		return nil, err
 	}
 
-	nes := NES{nil, cartidge}
+	ram := make([]byte, 2048)
+	nes := NES{nil, cartidge,nil,ram,nil,nil}
 
-	nes.CPU = NewCPU(NewCPUMemory(&nes))
-
+	nes.CPUMemory = NewCPUMemory(&nes)
+	nes.PPUMemory = NewPPUMemory(&nes)
+	nes.CPU = NewCPU(nes.CPUMemory)
+	nes.PPU = NewPPU(&nes)
 	return &nes, nil
 }
