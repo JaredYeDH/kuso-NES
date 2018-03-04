@@ -10,7 +10,7 @@ type PPU struct {
 	ScanLine int    // 0-261
 	Frame    uint64 // Frame counter
 
-	Palette       [32]byte
+	palette       [32]byte
 	nameTableData [2048]byte
 	oamData       [256]byte
 	front         *image.RGBA
@@ -31,25 +31,29 @@ type PPU struct {
 	nmiPrevious bool
 	nmiDelay    byte
 
-	// Temporary
+	// For Background
 	nameTableByte      byte
 	attributeTableByte byte
 	lowTileByte        byte
 	highTileByte       byte
 	tileData           uint64
-	spriteCount        int
-	spritePatterns     [8]uint32
-	spritePositions    [8]byte
-	spritePriorities   [8]byte
-	spriteIndexes      [8]byte
 
-	// Flags
-	fNameTable          byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
-	fIncrement          byte // 0: add 1; 1: add 32
-	fSpriteTable        byte // 0: $0000; 1: $1000; ignored in 8x16 mode
-	fBackgroundTable    byte // 0: $0000; 1: $1000
-	fSpriteSize         byte // 0: 8x8; 1: 8x16
-	fMasterSlave        byte // 0: read EXT; 1: write EXT
+	// For Sprite
+	spriteCount      int
+	spritePatterns   [8]uint32
+	spritePositions  [8]byte
+	spritePriorities [8]byte
+	spriteIndexes    [8]byte
+
+	// PPUCTRL
+	fNameTable       byte // 0: $2000; 1: $2400; 2: $2800; 3: $2C00
+	fIncrement       byte // 0: add 1; 1: add 32
+	fSpriteTable     byte // 0: $0000; 1: $1000; ignored in 8x16 mode
+	fBackgroundTable byte // 0: $0000; 1: $1000
+	fSpriteSize      byte // 0: 8x8; 1: 8x16
+	fMasterSlave     byte // 0: read EXT; 1: write EXT
+
+	// PPUMASK
 	fGrayscale          byte // 0: color; 1: grayscale
 	fShowLeftBackground byte // 0: hide; 1: show
 	fShowLeftSprites    byte // 0: hide; 1: show
@@ -58,10 +62,15 @@ type PPU struct {
 	fRedTint            byte // 0: normal; 1: emphasized
 	fGreenTint          byte // 0: normal; 1: emphasized
 	fBlueTint           byte // 0: normal; 1: emphasized
-	fSpriteZeroHit      byte
-	fSpriteOverflow     byte
 
-	oamAddress   byte
+	// PPUSTATUS
+	fSpriteZeroHit  byte
+	fSpriteOverflow byte
+
+	// OAMADDR
+	oamAddress byte
+
+	// PPUDATA
 	bufferedData byte
 }
 
@@ -74,6 +83,11 @@ func NewPPU(nes *NES) *PPU {
 }
 
 func (p *PPU) Reset() {
+
+	p.wCtrl(0)
+	p.wMask(0)
+	p.wOAMAddr(0)
+
 	p.Cycle = 340
 	p.ScanLine = 240
 	p.Frame = 0
@@ -142,15 +156,15 @@ func (p *PPU) wCtrl(val byte) {
 
 // $2001 - PPUMASK
 
-func (p *PPU) wMask(value byte) {
-	p.fGrayscale = (value >> 0) & 1
-	p.fShowLeftBackground = (value >> 1) & 1
-	p.fShowLeftSprites = (value >> 2) & 1
-	p.fShowBackground = (value >> 3) & 1
-	p.fShowSprites = (value >> 4) & 1
-	p.fRedTint = (value >> 5) & 1
-	p.fGreenTint = (value >> 6) & 1
-	p.fBlueTint = (value >> 7) & 1
+func (p *PPU) wMask(val byte) {
+	p.fGrayscale = (val >> 0) & 1
+	p.fShowLeftBackground = (val >> 1) & 1
+	p.fShowLeftSprites = (val >> 2) & 1
+	p.fShowBackground = (val >> 3) & 1
+	p.fShowSprites = (val >> 4) & 1
+	p.fRedTint = (val >> 5) & 1
+	p.fGreenTint = (val >> 6) & 1
+	p.fBlueTint = (val >> 7) & 1
 }
 
 // $2002 - PPUSTATUS
@@ -265,14 +279,14 @@ func (p *PPU) rPalette(address uint16) byte {
 	if address >= 16 && address%4 == 0 {
 		address = address - 16
 	}
-	return p.Palette[address]
+	return p.palette[address]
 }
 
 func (p *PPU) wPalette(address uint16, val byte) {
 	if address >= 16 && address%4 == 0 {
 		address = address - 16
 	}
-	p.Palette[address] = val
+	p.palette[address] = val
 }
 
 func (p *PPU) iHori() {
