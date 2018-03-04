@@ -261,3 +261,180 @@ func (p *PPU) wOAMDMA(value byte) {
 		p.NES.CPU.stall++
 	}
 }
+
+// Palette
+
+func (p *PPU) rPalette(address uint16) byte {
+	if address >= 16 && address%4 == 0 {
+		address = address - 16
+	}
+	return p.Palette[address]
+}
+
+func (p *PPU) wPalette(address uint16, val byte) {
+	if address >= 16 && address%4 == 0 {
+		address = address - 16
+	}
+	p.Palette[address] = val
+}
+
+func (p *PPU) iHori() {
+	if p.v&0x001F == 31 {
+		p.v = p.v & 0xFFE0
+		p.v = p.v ^ 0x400
+	} else {
+		p.v++
+	}
+}
+
+func (p *PPU) iVert() {
+	if p.v&0x7000 != 0x7000 {
+		p.v += 0x1000
+	} else {
+		p.v = p.v & 0x8FFF
+		y := (p.v & 0x03E0) >> 5
+		if y == 29 {
+			y = 0
+			p.v = p.v ^ 0x0800
+		} else if y == 31 {
+			y = 0
+		} else {
+			y++
+		}
+		p.v = (p.v & 0xFC1F) | (y << 5)
+	}
+}
+
+func (p *PPU) cpH() {
+	p.v = (p.v & 0xFBE0) | (p.t & 0x041F)
+}
+
+func (p *PPU) cpY() {
+	p.v = (p.v & 0x841F) | (p.t & 0x7BE0)
+}
+
+func (p *PPU) setVertBlank() {
+	p.back, p.front = p.front, p.back
+	p.nmiOccurred = true
+	p.nChange()
+}
+
+func (p *PPU) clrVertBlank() {
+	p.nmiOccurred = false
+	p.nChange()
+}
+
+func (p *PPU) getNtableByte() {
+	v := p.v
+	address := (v & 0xFFF) | 0x2000
+	p.nameTableByte = p.Read(address)
+}
+
+func (p *PPU) getATableByte() {
+	v := p.v
+	address := (0x23C0 | (v & 0xC00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x7))
+	i := (((v >> 4) & 4) | (v & 2))
+	p.attributeTableByte = (((p.Read(address)) >> i) & 3) << 2
+}
+
+func (p *PPU) getLTileByte() {
+	fineY := (p.v >> 12) & 7
+	table := p.fBackgroundTable
+	tile := p.nameTableByte
+	address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
+	p.lowTileByte = p.Read(address)
+}
+
+func (p *PPU) getHTileByte() {
+	fineY := (p.v >> 12) & 7
+	table := p.fBackgroundTable
+	tile := p.nameTableByte
+	address := 0x1000*uint16(table) + uint16(tile)*16 + fineY
+	p.lowTileByte = p.Read(address + 8)
+}
+
+func (p *PPU) getTData() uint32 {
+	return uint32(p.tileData >> 32)
+}
+
+func (p *PPU) storeTData() {
+	var data uint32
+	for i := 0; i < 8; i++ {
+		a := p.attributeTableByte
+		p1 := (p.lowTileByte & 0x80) >> 7
+		p2 := (p.highTileByte & 0x80) >> 6
+		p.lowTileByte = p.lowTileByte << 1
+		p.highTileByte = p.highTileByte << 1
+		data = data << 4
+		data |= uint32(a | p1 | p2)
+	}
+	p.tileData = p.tileData | uint64(data)
+}
+
+func (p *PPU) backPixel() byte {
+	if p.fShowBackground == 0 {
+		return 0
+	}
+	data := p.getTData() >> ((7 - p.x) * 4)
+	return byte(data & 0x0F)
+}
+
+func (p *PPU) spritePixel() (byte, byte) {
+	if p.fShowSprites == 0 {
+		return 0, 0
+	}
+	for i := 0; i < p.spriteCount; i++ {
+		temp := p.Cycle - int(p.spritePositions[i]) - 1
+		if temp < 0 || temp > 7 {
+			continue
+		}
+		offset := 7 - temp
+		color := byte((p.spritePatterns[i] >> byte(offset*4)) & 0xF)
+		if color%4 == 0 {
+			continue
+		}
+		return byte(i), color
+	}
+	return 0, 0
+}
+
+func (p *PPU) renderPixel() {
+	x := p.Cycle - 1
+	y := p.ScanLine
+
+	back := p.backPixel()
+
+	i, sprite := p.spritePixel()
+
+	if x < 8 {
+		if p.fShowLeftBackground == 0 {
+			back = 0
+		}
+		if p.fShowLeftSprites == 0 {
+			sprite = 0
+		}
+	}
+
+	var color byte
+
+	if back%4 == 0 && sprite%4 == 0 {
+		color = 0
+	} else if back%4 != 0 && sprite == 0 {
+		color = sprite | 0x10
+	} else if back%4 == 0 && sprite != 0 {
+		color = back
+	} else {
+		if p.spriteIndexes[i] == 0 && x < 255 {
+			p.fSpriteZeroHit = 1
+		}
+		if p.spritePriorities[i] == 0 {
+			color = sprite | 0x10
+		} else {
+			color = back
+		}
+	}
+
+	realcolor := Palette[p.rPalette(uint16(color%64))]
+
+	p.back.SetRGBA(x, y, realcolor)
+}
