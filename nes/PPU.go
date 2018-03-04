@@ -2,6 +2,10 @@ package nes
 
 import "image"
 
+// Ref: http://nesdev.com/2C02%20technical%20reference.TXT
+//      And a lot of blogs, wikis, and so on.
+//		Thanks to the authors of those documents.
+
 type PPU struct {
 	Memory // Memory interface
 	NES    *NES
@@ -93,6 +97,91 @@ func (p *PPU) Reset() {
 	p.Frame = 0
 }
 
+// Run runs a PPU cycle per execution
+
+func (p *PPU) Run() {
+
+	// Update
+	if p.nmiDelay > 0 {
+		p.nmiDelay--
+		if p.nmiDelay == 0 && p.nmiOutput && p.nmiOccurred {
+			p.NES.CPU.tNMI()
+		}
+	}
+
+	if (p.f == 1 && p.ScanLine == 261 && p.Cycle == 339) && (p.fShowBackground != 0 || p.fShowSprites != 0) {
+		p.Cycle = 0
+		p.ScanLine = 0
+		p.Frame++
+		p.f = p.f ^ 1
+	} else {
+		p.Cycle++
+		if p.Cycle > 340 {
+			p.Cycle = 0
+			p.ScanLine++
+			if p.ScanLine > 261 {
+				p.ScanLine = 0
+				p.Frame++
+				p.f = p.f ^ 1
+			}
+		}
+	}
+
+	if p.fShowBackground != 0 || p.fShowSprites != 0 {
+		if p.ScanLine < 240 && p.Cycle >= 1 && p.Cycle <= 256 {
+			p.renderPixel()
+		}
+		if ((p.Cycle >= 321 && p.Cycle <= 336) || (p.Cycle >= 1 && p.Cycle <= 256)) && p.ScanLine < 240 {
+			p.tileData <<= 4
+			switch p.Cycle % 8 {
+			case 1:
+				p.getNtableByte()
+			case 3:
+				p.getATableByte()
+			case 5:
+				p.getLTileByte()
+			case 7:
+				p.getHTileByte()
+			case 0:
+				p.storeTData()
+			}
+		}
+		if p.ScanLine == 261 && p.Cycle >= 280 && p.Cycle <= 304 {
+			p.cpV()
+		}
+		if p.ScanLine < 240 || p.ScanLine == 261 {
+			if ((p.Cycle >= 321 && p.Cycle <= 336) || (p.Cycle >= 1 && p.Cycle <= 256)) && p.Cycle%8 == 0 {
+				p.iHori()
+			}
+			if p.Cycle == 256 {
+				p.iVert()
+			}
+			if p.Cycle == 257 {
+				p.cpH()
+			}
+		}
+	}
+
+	if p.fShowBackground != 0 || p.fShowSprites != 0 {
+		if p.Cycle == 257 {
+			if p.ScanLine < 240 {
+				p.evalSprites()
+			} else {
+				p.spriteCount = 0
+			}
+		}
+	}
+
+	if p.ScanLine == 241 && p.Cycle == 1 {
+		p.setVertBlank()
+	}
+	if p.ScanLine == 261 && p.Cycle == 1 {
+		p.clrVertBlank()
+		p.fSpriteZeroHit = 0
+		p.fSpriteOverflow = 0
+	}
+}
+
 // Registers
 // Ref: http://wiki.nesdev.com/w/index.php/PPU_registers
 // And a countless number of documents from the internet.
@@ -149,7 +238,7 @@ func (p *PPU) wCtrl(val byte) {
 	p.fBackgroundTable = (val >> 4) & 1
 	p.fSpriteTable = (val >> 5) & 1
 	p.fMasterSlave = (val >> 6) & 1
-	p.nmiOutput = (((val >> 7) & 1) == 1)
+	p.nmiOutput = ((val >> 7) & 1) == 1
 	p.nChange()
 	p.t = (p.t & 0xF3FF) | uint16(val&1|(((val>>1)&1)<<1)<<10)
 }
@@ -320,7 +409,7 @@ func (p *PPU) cpH() {
 	p.v = (p.v & 0xFBE0) | (p.t & 0x041F)
 }
 
-func (p *PPU) cpY() {
+func (p *PPU) cpV() {
 	p.v = (p.v & 0x841F) | (p.t & 0x7BE0)
 }
 
@@ -343,8 +432,8 @@ func (p *PPU) getNtableByte() {
 
 func (p *PPU) getATableByte() {
 	v := p.v
-	address := (0x23C0 | (v & 0xC00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x7))
-	i := (((v >> 4) & 4) | (v & 2))
+	address := 0x23C0 | (v & 0xC00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x7)
+	i := ((v >> 4) & 4) | (v & 2)
 	p.attributeTableByte = (((p.Read(address)) >> i) & 3) << 2
 }
 
