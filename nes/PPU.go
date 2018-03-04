@@ -1,10 +1,6 @@
 package nes
 
-import (
-	"flag"
-	"image"
-	"image/color"
-)
+import "image"
 
 type PPU struct {
 	Memory // Memory interface
@@ -96,6 +92,7 @@ func (p *PPU) ReadRegister(address uint16) byte {
 	case 7:
 		return p.rData()
 	}
+	return 0
 }
 
 func (p *PPU) WriteRegister(address uint16, val byte) {
@@ -437,4 +434,80 @@ func (p *PPU) renderPixel() {
 	realcolor := Palette[p.rPalette(uint16(color%64))]
 
 	p.back.SetRGBA(x, y, realcolor)
+}
+
+func (p *PPU) evalSprites() {
+	var h int
+	if p.fSpriteSize == 0 {
+		h = 8
+	} else {
+		h = 16
+	}
+	count := 0
+	for i := 0; i < 64; i++ {
+		y := p.oamData[i*4]
+		a := p.oamData[i*4+2]
+		x := p.oamData[i*4+3]
+		r := p.ScanLine - int(y)
+		if r < 0 || r >= h {
+			continue
+		}
+		if count < 8 {
+			p.spritePatterns[count] = p.getSPattern(i, r)
+			p.spritePositions[count] = x
+			p.spritePriorities[count] = (a >> 5) & 1
+			p.spriteIndexes[count] = byte(i)
+		}
+		count++
+	}
+	if count > 8 {
+		count = 8
+		p.fSpriteOverflow = 1
+	}
+	p.spriteCount = count
+}
+
+func (p *PPU) getSPattern(i, r int) uint32 {
+	tile := p.oamData[i*4+1]
+	attributes := p.oamData[i*4+2]
+	var address uint16
+	if p.fSpriteSize == 0 {
+		if attributes&0x80 == 0x80 {
+			r = 7 - r
+		}
+		table := p.fSpriteTable
+		address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(r)
+	} else {
+		if attributes&0x80 == 0x80 {
+			r = 15 - r
+		}
+		table := tile & 1
+		tile &= 0xFE
+		if r > 7 {
+			tile++
+			r -= 8
+		}
+		address = 0x1000*uint16(table) + uint16(tile)*16 + uint16(r)
+	}
+	a := (attributes & 3) << 2
+	lowTileByte := p.Read(address)
+	highTileByte := p.Read(address + 8)
+	var pattern uint32
+	for i := 0; i < 8; i++ {
+		var b, c byte
+		if attributes&0x40 == 0x40 {
+			b = lowTileByte & 1
+			c = (highTileByte & 1) << 1
+			lowTileByte = lowTileByte >> 1
+			highTileByte = highTileByte >> 1
+		} else {
+			b = (lowTileByte & 0x80) >> 7
+			c = (highTileByte & 0x80) >> 6
+			lowTileByte = lowTileByte << 1
+			highTileByte = highTileByte << 1
+		}
+		pattern = pattern << 4
+		pattern = pattern | uint32(a|b|c)
+	}
+	return pattern
 }
