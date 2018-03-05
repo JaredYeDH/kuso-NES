@@ -1,94 +1,65 @@
 package ui
 
 import (
-	"engo.io/ecs"
-	"engo.io/engo"
-	"engo.io/engo/common"
-	"fmt"
-	"image"
-	"image/png"
+	"github.com/go-gl/gl/all-core/gl"
+	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/kuso-kodo/kuso-NES/nes"
 	"log"
-	"os"
+	"runtime"
 )
 
-type NESVideo struct {
-	filename string
-	width    int
-	height   int
-}
-
-type Frame struct {
-	ecs.BasicEntity
-	common.RenderComponent
-	common.SpaceComponent
-}
-
-func (n *NESVideo) Preload() {
-	err := engo.Files.Load(n.filename)
-
+func Run(nes *nes.NES) {
+	runtime.LockOSThread()
+	err := glfw.Init()
 	if err != nil {
-		log.Panic("Preload: " + err.Error())
+		log.Panic("GLFW Init error: ", err)
 	}
-}
+	defer glfw.Terminate()
 
-func (n *NESVideo) Setup(world *ecs.World) {
-	world.AddSystem(new(common.RenderSystem))
-
-	frame := Frame{BasicEntity: ecs.NewBasic()}
-
-	frame.SpaceComponent = common.SpaceComponent{
-		Position: engo.Point{0, 0},
-		Width:    float32(n.width),
-		Height:   float32(n.height),
-	}
-
-	texture, err := common.LoadedSprite(n.filename)
+	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.ContextVersionMajor, 2)
+	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	window, err := glfw.CreateWindow(256*4, 240*4, "KUSO-NES - "+nes.FileName, nil, nil)
 	if err != nil {
-		log.Panic("Setup: Unable to load texture: " + err.Error())
+		log.Panic("GLFW CreateWindow error: ", err)
 	}
 
-	frame.RenderComponent = common.RenderComponent{
-		Drawable: texture,
-		Scale:    engo.Point{0, 0},
-	}
-
-	for _, system := range world.Systems() {
-		switch sys := system.(type) {
-		case *common.RenderSystem:
-			sys.Add(&frame.BasicEntity, &frame.RenderComponent, &frame.SpaceComponent)
-		}
-	}
-
-}
-
-func (n *NESVideo) Type() string {
-	return "kuso-NES"
-}
-
-func Run(path string) {
-
-	file, err := os.Open("assets/" + path)
-
+	window.MakeContextCurrent()
+	err = gl.Init()
 	if err != nil {
-		log.Fatalf("Open file error: %v", err)
+		log.Panic("OPenGL Init error: ", err)
 	}
 
-	log.Println("File loaded.")
-	var config image.Config
+	gl.Enable(gl.TEXTURE_2D)
 
-	config, err = png.DecodeConfig(file)
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-	if err != nil {
-		log.Fatalf("Read png config error: %v", err)
+	for window.ShouldClose() == false {
+		nes.FrameRun()
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		buf := nes.Buffer()
+		size := buf.Rect.Size()
+		gl.TexImage2D(
+			gl.TEXTURE_2D, 0, gl.RGBA,
+			int32(size.X), int32(size.Y),
+			0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(buf.Pix))
 	}
-	file.Close()
-	log.Println("Config readed.")
-
-	opts := engo.RunOptions{
-		Title:  fmt.Sprintf("%v - kuso-NES", path),
-		Width:  config.Width,
-		Height: config.Height,
-	}
-
-	engo.Run(opts, &NESVideo{path, config.Width, config.Height})
+	gl.Begin(gl.QUADS)
+	gl.TexCoord2f(0, 1)
+	gl.Vertex3f(-1, -1, 1)
+	gl.TexCoord2f(1, 1)
+	gl.Vertex3f(1, -1, 1)
+	gl.TexCoord2f(1, 0)
+	gl.Vertex3f(1, 1, 1)
+	gl.TexCoord2f(0, 0)
+	gl.Vertex3f(-1, 1, 1)
+	gl.End()
+	window.SwapBuffers()
+	glfw.PollEvents()
 }

@@ -7,6 +7,7 @@ import (
 // Early support file for testing the CPU
 
 type NES struct {
+	FileName  string
 	CPU       *CPU
 	Cartridge *Cartridge
 	PPU       *PPU
@@ -23,7 +24,7 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{nil, cartidge, nil, ram, nil, nil}
+	nes := NES{path, nil, cartidge, nil, ram, nil, nil}
 
 	nes.CPUMemory = NewCPUMemory(&nes)
 	nes.PPUMemory = NewPPUMemory(&nes)
@@ -47,10 +48,10 @@ func (nes *NES) Run() int {
 func (n *NES) FrameRun() {
 	frame := n.PPU.Frame
 	for frame == n.PPU.Frame {
-				n.Run()
-			}
+		n.Run()
+	}
 }
 
 func (n *NES) Buffer() *image.RGBA {
-	return n.PPU.front
+	return n.PPU.back
 }

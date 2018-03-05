@@ -1,12 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"github.com/kuso-kodo/kuso-NES/nes"
 	"github.com/kuso-kodo/kuso-NES/ui"
-	"image/jpeg"
-	"image/png"
 	"log"
 	"os"
-	"strings"
 )
 
 const (
@@ -14,32 +13,15 @@ const (
 	EXEC_FAILED
 )
 
-// At this time , the usage of main.go is to test whether we can read a png/jpeg file and show it properly.
-// Usage: kuso-NES <file name>
-
+// Trying to connect UI with the f***ing PPU.
 func main() {
-
-	argv := "assets/" + os.Args[1]
-	if strings.HasSuffix(os.Args[1], "PNG") || strings.HasSuffix(os.Args[1], "png") {
-		ui.Run(os.Args[1])
-	} else {
-		file, err := os.Open(argv)
-		if err != nil {
-			log.Printf("Readind file %s error:"+err.Error(), os.Args[1])
-		}
-
-		image, err := jpeg.Decode(file)
-
-		if err != nil {
-			log.Printf("Decoding jpeg file error:" + err.Error())
-		}
-
-		write, err := os.Create(argv + ".png")
-		if err != nil {
-			log.Printf("Writing file %s error:"+err.Error(), os.Args[1])
-		}
-
-		png.Encode(write, image)
-		ui.Run(os.Args[1] + ".png")
+	if len(os.Args) == 1 {
+		fmt.Println("Usage: kuso-NES <NES Rom Path>")
+		os.Exit(EXEC_FAILED)
 	}
+	nes, err := nes.NewNES(os.Args[1])
+	if err != nil {
+		log.Fatalln(err)
+	}
+	ui.Run(nes)
 }

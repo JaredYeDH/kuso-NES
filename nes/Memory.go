@@ -2,8 +2,6 @@ package nes
 
 import "log"
 
-// Early implemention of 6502 CPU Memory to support the development of CPU
-
 type Memory interface {
 	Read(address uint16) byte
 	Write(address uint16, value byte)
@@ -27,11 +25,15 @@ func (mem *CPUMemory) Read(address uint16) byte {
 		return mem.nes.PPU.ReadRegister(0x2000 + address%8)
 	case address == 0x4014:
 		return mem.nes.PPU.ReadRegister(address)
+	case address < 0x4020:
+		log.Printf("Haven't done")
+		return 0
 	case address >= 0x6000:
 		return mem.nes.Cartridge.Read(address)
 	default:
-		return 0
+		log.Fatalf("Illegal CPU memory read at address: $%04X", address)
 	}
+	return 0
 }
 
 func (mem *CPUMemory) Write(address uint16, val byte) {
@@ -44,8 +46,14 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 	case address == 0x4014:
 		mem.nes.PPU.WriteRegister(address, val)
 		return
+	case address < 0x4020:
+		log.Printf("Haven't done")
+		return
 	case address >= 0x6000:
 		mem.nes.Cartridge.Write(address, val)
+		return
+	default:
+		log.Fatalf("Illegal CPU memory write at address: $%04X", address)
 	}
 }
 
@@ -73,10 +81,11 @@ func (mem *PPUMemory) Read(address uint16) byte {
 	case address < 0x3F00:
 		return mem.nes.PPU.nameTableData[address%2048]
 	case address < 0x4000:
-		return mem.nes.PPU.paletteData[address%32]
+		return mem.nes.PPU.palette[address%32]
 	default:
 		log.Fatalf("PPUMemory: Unknown read at address: 0x%04X", address)
 	}
+	return 0
 }
 
 func (mem *PPUMemory) Write(address uint16, val byte) {
@@ -89,7 +98,7 @@ func (mem *PPUMemory) Write(address uint16, val byte) {
 		mem.nes.PPU.nameTableData[address%2048] = val
 		return
 	case address < 0x4000:
-		mem.nes.PPU.paletteData[address%32] = val
+		mem.nes.PPU.palette[address%32] = val
 		return
 	default:
 		log.Fatalf("PPUMemory: Unknown write at address: 0x%04X", address)
