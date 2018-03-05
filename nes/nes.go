@@ -1,5 +1,9 @@
 package nes
 
+import (
+	"image"
+)
+
 // Early support file for testing the CPU
 
 type NES struct {
@@ -26,4 +30,27 @@ func NewNES(path string) (*NES, error) {
 	nes.CPU = NewCPU(nes.CPUMemory)
 	nes.PPU = NewPPU(&nes)
 	return &nes, nil
+}
+
+func (n *NES) Reset() {
+	n.CPU.Reset()
+}
+
+func (nes *NES) Run() int {
+	cpuCycles := nes.CPU.Run()
+	for i := 0; i < cpuCycles*3; i++ {
+		nes.PPU.Run()
+	}
+	return cpuCycles
+}
+
+func (n *NES) FrameRun() {
+	frame := n.PPU.Frame
+	for frame == n.PPU.Frame {
+				n.Run()
+			}
+}
+
+func (n *NES) Buffer() *image.RGBA {
+	return n.PPU.front
 }
