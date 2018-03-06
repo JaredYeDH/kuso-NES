@@ -8,6 +8,7 @@ import (
 
 type NES struct {
 	FileName  string
+	APU       *APU
 	CPU       *CPU
 	Cartridge *Cartridge
 	PPU       *PPU
@@ -24,8 +25,8 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{path, nil, cartidge, nil, ram, nil, nil}
-
+	nes := NES{path, nil, nil, cartidge, nil, ram, nil, nil}
+	nes.APU = NewAPU(&nes)
 	nes.CPUMemory = NewCPUMemory(&nes)
 	nes.PPUMemory = NewPPUMemory(&nes)
 	nes.CPU = NewCPU(nes.CPUMemory)
