@@ -284,3 +284,76 @@ func (t *Triangle) out() byte {
 	}
 	return triangleTable[t.dValue]
 }
+
+// Noise
+
+func (n *Noise) wCtrl(value byte) {
+	n.lEnabled = (value>>5)&1 == 0
+	n.eLoop = (value>>5)&1 == 1
+	n.eEnabled = (value>>4)&1 == 0
+	n.ePeriod = value & 15
+	n.cVolume = value & 15
+	n.eStart = true
+}
+
+func (n *Noise) wPeriod(value byte) {
+	n.mode = value&0x80 == 0x80
+	n.tPeriod = noiseTable[value&0x0F]
+}
+
+func (n *Noise) wLength(value byte) {
+	n.lValue = lengthTable[value>>3]
+	n.eStart = true
+}
+
+func (n *Noise) rTimer() {
+	if n.tValue == 0 {
+		n.tValue = n.tPeriod
+		var shift byte
+		if n.mode {
+			shift = 6
+		} else {
+			shift = 1
+		}
+		b1 := n.shiftRegister & 1
+		b2 := (n.shiftRegister >> shift) & 1
+		n.shiftRegister = n.shiftRegister >> 1
+		n.shiftRegister |= (b1 ^ b2) << 14
+	} else {
+		n.tValue--
+	}
+}
+
+func (n *Noise) rEnvelope() {
+	if n.eStart {
+		n.eVolume = 15
+		n.eValue = n.ePeriod
+		n.eStart = false
+	} else if n.eValue > 0 {
+		n.eValue--
+	} else {
+		if n.eVolume > 0 {
+			n.eVolume--
+		} else if n.eLoop {
+			n.eVolume = 15
+		}
+		n.eValue = n.ePeriod
+	}
+}
+
+func (n *Noise) rLength() {
+	if n.lEnabled && n.lValue > 0 {
+		n.lValue--
+	}
+}
+
+func (n *Noise) out() byte {
+	if !n.enabled || n.lValue == 0 || n.shiftRegister&1 == 1 {
+		return 0
+	}
+	if n.eEnabled {
+		return n.eVolume
+	} else {
+		return n.cVolume
+	}
+}
