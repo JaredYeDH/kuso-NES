@@ -154,8 +154,8 @@ func (s *Square) wCtrl(val byte) {
 	s.lEnabled = (val>>5)&1 == 0
 	s.eLoop = !s.lEnabled
 	s.eEnabled = (val>>4)&1 == 0
-	s.ePeriod = (val & 15)
-	s.eVolume = (val & 15)
+	s.ePeriod = val & 15
+	s.eVolume = val & 15
 	s.eStart = true
 }
 
@@ -236,7 +236,7 @@ func (s *Square) out() byte {
 // Triangle
 
 func (t *Triangle) wCtrl(val byte) {
-	t.lEnabled = (val>>7&1 == 0)
+	t.lEnabled = val>>7&1 == 0
 }
 
 func (t *Triangle) wTimerLow(val byte) {
@@ -356,4 +356,76 @@ func (n *Noise) out() byte {
 	} else {
 		return n.cVolume
 	}
+}
+
+// DMC
+
+func (d *DMC) wCtrl(val byte) {
+	d.irq = val&0x80 == 0x80
+	d.loop = val&0x40 == 0x40
+	d.tPeriod = dmcTable[val&0x0F]
+}
+
+func (d *DMC) wValue(val byte) {
+	d.value = val & 0x7F
+}
+
+func (d *DMC) wAddress(value byte) {
+	d.sAddress = 0xC000 | (uint16(value) << 6)
+}
+
+func (d *DMC) wLength(value byte) {
+	d.sLength = (uint16(value) << 4) | 1
+}
+
+
+func (d *DMC) stepTimer() {
+	if !d.enabled {
+		return
+	}
+	d.rReader()
+	if d.tValue == 0 {
+		d.tValue = d.tPeriod
+		d.rShifter()
+	} else {
+		d.tValue--
+	}
+}
+
+func (d *DMC) rReader() {
+	if d.cLength > 0 && d.bCount == 0 {
+		d.cpu.stall += 4
+		d.shiftRegister = d.cpu.Read(d.cAddress)
+		d.bCount = 8
+		d.cAddress++
+		if d.cAddress == 0 {
+			d.cAddress = 0x8000
+		}
+		d.cLength--
+		if d.cLength == 0 && d.loop {
+			d.cAddress = d.sAddress
+			d.cLength = d.sLength
+		}
+	}
+}
+
+func (d *DMC) rShifter() {
+	if d.bCount == 0 {
+		return
+	}
+	if d.shiftRegister&1 == 1 {
+		if d.value <= 125 {
+			d.value += 2
+		}
+	} else {
+		if d.value >= 2 {
+			d.value -= 2
+		}
+	}
+	d.shiftRegister = d.shiftRegister >> 1
+	d.bCount--
+}
+
+func (d *DMC) out() byte {
+	return d.value
 }
