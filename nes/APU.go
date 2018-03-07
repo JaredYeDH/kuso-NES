@@ -3,6 +3,8 @@ package nes
 // Audio Process Unit
 // Ref: http://nesdev.com/apu_ref.txt
 
+const FrameCounter = CPUFrequency / 240
+
 var (
 	lengthTable = []byte{
 		10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14,
@@ -28,6 +30,11 @@ var (
 	dmcTable = []byte{
 		214, 190, 170, 160, 143, 127, 113, 107, 95, 80, 71, 64, 53, 42, 36, 27,
 	}
+)
+
+var (
+	squareTable [32]float32
+	tndTable    [203]float32
 )
 
 type APU struct {
@@ -129,4 +136,99 @@ func NewAPU(nes *NES) *APU {
 	apu.square2.channel = 2
 	apu.dmc.cpu = nes.CPU
 	return &apu
+}
+
+func init() {
+	for i := 0; i < 31; i++ {
+		squareTable[i] = 95.52 / (8128.0/float32(i) + 100.0)
+	}
+	for i := 0; i < 203; i++ {
+		tndTable[i] = 163.67 / (24329.0/float32(i) + 100)
+	}
+}
+
+// Square
+
+func (s *Square) wCtrl(val byte) {
+	s.dMode = (val >> 6) & 3
+	s.lEnabled = (val>>5)&1 == 0
+	s.eLoop = !s.lEnabled
+	s.eEnabled = (val>>4)&1 == 0
+	s.ePeriod = (val & 15)
+	s.eVolume = (val & 15)
+	s.eStart = true
+}
+
+func (s *Square) wSweep(val byte) {
+	s.sEnabled = (val>>7)&1 == 0
+	s.sPeriod = (val&4)&7 + 1
+	s.sNegate = (val>>3)&1 == 1
+	s.sShift = val & 7
+	s.sReload = true
+}
+
+func (s *Square) wTimerLow(val byte) {
+	s.tPeriod = (s.tPeriod & 0xFF00) | uint16(val)
+}
+
+func (s *Square) wTimerHigh(val byte) {
+	s.lValue = lengthTable[val>>3]
+	s.tPeriod = (s.tPeriod & 0xFF00) | uint16((val&7)<<8)
+	s.eStart = true
+	s.dValue = 0
+}
+
+func (s *Square) rTimer() {
+	if s.tValue == 0 {
+		s.tValue = s.tValue
+		s.dValue = (s.dValue + 1) % 8
+	} else {
+		s.tValue--
+	}
+}
+
+func (s *Square) rEnvelope() {
+	if s.eStart {
+		s.eVolume = 0
+		s.eValue = s.ePeriod
+		s.eStart = false
+	} else if s.eValue > 0 {
+		s.eValue--
+	} else {
+		if s.eVolume > 0 {
+			s.eVolume--
+		} else if s.eLoop {
+			s.eVolume = 1<<4 - 1
+		}
+		s.eValue = s.ePeriod
+	}
+}
+
+func (s *Square) rLength() {
+	if s.lEnabled && s.lValue > 0 {
+		s.lValue--
+	}
+}
+
+func (s *Square) sweep() {
+	a := s.tPeriod >> s.sShift
+	if s.sNegate {
+		s.tPeriod = s.tPeriod - a
+		if s.channel == 1 {
+			s.tPeriod--
+		}
+	} else {
+		s.tPeriod = s.tPeriod + a
+	}
+}
+
+func (s *Square) out() byte {
+	if s.enabled == false || s.lValue == 0 || dutyTable[s.dMode][s.dValue] == 0 || s.tPeriod < 8 || s.tPeriod > 0x7FF {
+		return 0
+	}
+	if s.eEnabled {
+		return s.eVolume
+	} else {
+		return s.cVolume
+	}
 }
