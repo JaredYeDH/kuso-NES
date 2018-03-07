@@ -232,3 +232,55 @@ func (s *Square) out() byte {
 		return s.cVolume
 	}
 }
+
+// Triangle
+
+func (t *Triangle) wCtrl(val byte) {
+	t.lEnabled = (val>>7&1 == 0)
+}
+
+func (t *Triangle) wTimerLow(val byte) {
+	t.tPeriod = (t.tPeriod & 0xFF00) | uint16(val)
+}
+
+func (t *Triangle) wTimerHigh(val byte) {
+	t.lValue = lengthTable[val>>3]
+	t.tPeriod = (t.tPeriod & 0x00FF) | (uint16(val&7) << 8)
+	t.tValue = t.tPeriod
+	t.cReload = true
+}
+
+func (t *Triangle) rTimer() {
+	if t.tValue == 0 {
+		t.tValue = t.tPeriod
+		if t.lValue > 0 && t.cValue > 0 {
+			t.dValue = (t.dValue + 1) % 32
+		}
+	} else {
+		t.tValue--
+	}
+}
+
+func (t *Triangle) rLength() {
+	if t.lEnabled && t.lValue > 0 {
+		t.lValue--
+	}
+}
+
+func (t *Triangle) rCounter() {
+	if t.cReload {
+		t.cValue = t.cPeriod
+	} else if t.cValue > 0 {
+		t.cValue--
+	}
+	if t.lEnabled {
+		t.cReload = false
+	}
+}
+
+func (t *Triangle) out() byte {
+	if !t.enabled || t.lValue == 0 || t.cValue == 0 {
+		return 0
+	}
+	return triangleTable[t.dValue]
+}
