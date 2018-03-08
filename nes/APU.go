@@ -1,8 +1,10 @@
 package nes
 
-// Audio Process Unit
-// Ref: http://nesdev.com/apu_ref.txt
+import "math"
 
+// Audio Process Unit
+// Ref: http://nesdev.com/a_ref.txt
+// And some very old materials.
 const FrameCounter = CPUFrequency / 240
 
 var (
@@ -36,6 +38,20 @@ var (
 	squareTable [32]float32
 	tndTable    [203]float32
 )
+
+type Filter interface {
+	Run(x float32) float32
+}
+
+type FirstOrderFilter struct {
+	B0   float32
+	B1   float32
+	A1   float32
+	prvX float32
+	prvY float32
+}
+
+type FilterChain []Filter
 
 type APU struct {
 	nes        *NES
@@ -122,20 +138,14 @@ type DMC struct {
 	irq           bool
 }
 
-type Filter interface {
-	Run(x float32) float32
-}
-
-type FilterChain []Filter
-
 func NewAPU(nes *NES) *APU {
-	apu := APU{}
-	apu.nes = nes
-	apu.noise.shiftRegister = 1
-	apu.square1.channel = 1
-	apu.square2.channel = 2
-	apu.dmc.cpu = nes.CPU
-	return &apu
+	a := APU{}
+	a.nes = nes
+	a.noise.shiftRegister = 1
+	a.square1.channel = 1
+	a.square2.channel = 2
+	a.dmc.cpu = nes.CPU
+	return &a
 }
 
 func init() {
@@ -180,7 +190,7 @@ func (s *Square) wTimerHigh(val byte) {
 
 func (s *Square) rTimer() {
 	if s.tValue == 0 {
-		s.tValue = s.tValue
+		s.tValue = s.tPeriod
 		s.dValue = (s.dValue + 1) % 8
 	} else {
 		s.tValue--
@@ -210,7 +220,7 @@ func (s *Square) rLength() {
 	}
 }
 
-func (s *Square) sweep() {
+func (s *Square) Sweep() {
 	a := s.tPeriod >> s.sShift
 	if s.sNegate {
 		s.tPeriod = s.tPeriod - a
@@ -378,8 +388,7 @@ func (d *DMC) wLength(value byte) {
 	d.sLength = (uint16(value) << 4) | 1
 }
 
-
-func (d *DMC) stepTimer() {
+func (d *DMC) rTimer() {
 	if !d.enabled {
 		return
 	}
@@ -428,4 +437,200 @@ func (d *DMC) rShifter() {
 
 func (d *DMC) out() byte {
 	return d.value
+}
+
+// APU
+
+func (a *APU) wCtrl(val byte) {
+	a.square1.enabled = val&1 == 1
+	a.square2.enabled = (val>>1)&1 == 1
+	a.triangle.enabled = (val>>2)&1 == 1
+	a.noise.enabled = (val>>3)&1 == 1
+	a.dmc.enabled = (val>>4)&1 == 1
+	if !a.square1.enabled {
+		a.square1.lValue = 0
+	}
+	if !a.square2.enabled {
+		a.square2.lValue = 0
+	}
+	if !a.triangle.enabled {
+		a.triangle.lValue = 0
+	}
+	if !a.noise.enabled {
+		a.noise.lValue = 0
+	}
+	if !a.dmc.enabled {
+		a.dmc.cLength = 0
+	} else {
+		if a.dmc.cLength == 0 {
+			a.dmc.cAddress = a.dmc.sAddress
+			a.dmc.cLength = a.dmc.sLength
+		}
+	}
+}
+
+func (a *APU) wFrameCounter(val byte) {
+	a.fPeriod = 4 + (val>>7)&1
+	a.fIRQ = (val>>6)&1 == 0
+	if a.fPeriod == 5 {
+		a.rEnvelope()
+		a.Sweep()
+		a.rLength()
+	}
+}
+
+func (a *APU) rStatus() byte {
+	var res byte
+	if a.square1.lValue > 0 {
+		res |= 1
+	}
+	if a.square2.lValue > 0 {
+		res |= 1 << 1
+	}
+	if a.triangle.lValue > 0 {
+		res |= 1 << 2
+	}
+	if a.noise.lValue > 0 {
+		res |= 1 << 3
+	}
+	if a.dmc.cLength > 0 {
+		res |= 1 << 4
+	}
+	return res
+}
+
+func (a *APU) rFrameCounter() {
+	switch a.fPeriod {
+	case 4:
+		a.fValue = (a.fValue + 1) % 4
+		switch a.fValue {
+		case 0, 2:
+			a.rEnvelope()
+		case 1:
+			a.rEnvelope()
+			a.Sweep()
+			a.rLength()
+		case 3:
+			a.rEnvelope()
+			a.Sweep()
+			a.rLength()
+			a.tIRQ()
+		}
+	case 5:
+		a.fValue = (a.fValue + 1) % 5
+		switch a.fValue {
+		case 1, 3:
+			a.rEnvelope()
+		case 0, 2:
+			a.rEnvelope()
+			a.Sweep()
+			a.rLength()
+		}
+	}
+}
+
+func (a *APU) rTimer() {
+	if a.cycle%2 == 0 {
+		a.square1.rTimer()
+		a.square2.rTimer()
+		a.noise.rTimer()
+		a.dmc.rTimer()
+	}
+	a.triangle.rTimer()
+}
+
+func (a *APU) rEnvelope() {
+	a.square1.rEnvelope()
+	a.square2.rEnvelope()
+	a.triangle.rCounter()
+	a.noise.rEnvelope()
+}
+
+func (a *APU) Sweep() {
+	a.square1.Sweep()
+	a.square2.Sweep()
+}
+
+func (a *APU) rLength() {
+	a.square1.rLength()
+	a.square2.rLength()
+	a.triangle.rLength()
+	a.noise.rLength()
+}
+
+func (a *APU) tIRQ() {
+	if a.fIRQ {
+		a.nes.CPU.tIRQ()
+	}
+}
+
+func (a *APU) Run() {
+	cycle1 := a.cycle
+	a.cycle++
+	cycle2 := a.cycle
+	a.rTimer()
+	f1 := int(float64(cycle1) / FrameCounter)
+	f2 := int(float64(cycle2) / FrameCounter)
+	if f1 != f2 {
+		a.rFrameCounter()
+	}
+	s1 := int(float64(cycle1) / a.sampleRate)
+	s2 := int(float64(cycle2) / a.sampleRate)
+	if s1 != s2 {
+		output := a.fChain.Run(a.out())
+		select {
+		case a.channel <- output:
+		default:
+		}
+	}
+}
+
+func (a *APU) out() float32 {
+	p1 := a.square1.out()
+	p2 := a.square2.out()
+	t := a.triangle.out()
+	n := a.noise.out()
+	d := a.dmc.out()
+	squareOut := squareTable[p1+p2]
+	tndOut := tndTable[3*t+2*n+d]
+	return squareOut + tndOut
+}
+
+// Filter Chain
+
+// y[n] = B0*x[n] + B1*x[n-1] - A1*y[n-1]
+func (f *FirstOrderFilter) Run(x float32) float32 {
+	y := f.B0*x + f.B1*f.prvX - f.A1*f.prvY
+	f.prvY = y
+	f.prvX = x
+	return y
+}
+
+func LPassFilter(sRate float32, cFreq float32) Filter {
+	c := sRate / math.Pi / cFreq
+	a0i := 1 / (1 + c)
+	return &FirstOrderFilter{
+		B0: a0i,
+		B1: a0i,
+		A1: (1 - c) * a0i,
+	}
+}
+
+func HPassFilter(sRate float32, cFreq float32) Filter {
+	c := sRate / math.Pi / cFreq
+	a0i := 1 / (1 + c)
+	return &FirstOrderFilter{
+		B0: c * a0i,
+		B1: -c * a0i,
+		A1: (1 - c) * a0i,
+	}
+}
+
+func (f FilterChain) Run(x float32) float32 {
+	if f != nil {
+		for i := range f {
+			x = f[i].Run(x)
+		}
+	}
+	return x
 }
