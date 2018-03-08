@@ -380,12 +380,12 @@ func (d *DMC) wValue(val byte) {
 	d.value = val & 0x7F
 }
 
-func (d *DMC) wAddress(value byte) {
-	d.sAddress = 0xC000 | (uint16(value) << 6)
+func (d *DMC) wAddress(val byte) {
+	d.sAddress = 0xC000 | (uint16(val) << 6)
 }
 
-func (d *DMC) wLength(value byte) {
-	d.sLength = (uint16(value) << 4) | 1
+func (d *DMC) wLength(val byte) {
+	d.sLength = (uint16(val) << 4) | 1
 }
 
 func (d *DMC) rTimer() {
@@ -440,6 +440,63 @@ func (d *DMC) out() byte {
 }
 
 // APU
+
+// Registers
+
+func (apu *APU) ReadRegister(address uint16) byte {
+	switch address {
+	case 0x4015:
+		return apu.rStatus()
+	}
+	return 0
+}
+
+func (apu *APU) WriteRegister(address uint16, val byte) {
+	switch address {
+	case 0x4000:
+		apu.square1.wCtrl(val)
+	case 0x4001:
+		apu.square1.wSweep(val)
+	case 0x4002:
+		apu.square1.wTimerLow(val)
+	case 0x4003:
+		apu.square1.wTimerHigh(val)
+	case 0x4004:
+		apu.square2.wCtrl(val)
+	case 0x4005:
+		apu.square2.wSweep(val)
+	case 0x4006:
+		apu.square2.wTimerLow(val)
+	case 0x4007:
+		apu.square2.wTimerHigh(val)
+	case 0x4008:
+		apu.triangle.wCtrl(val)
+	case 0x4009:
+	case 0x4010:
+		apu.dmc.wCtrl(val)
+	case 0x4011:
+		apu.dmc.wValue(val)
+	case 0x4012:
+		apu.dmc.wAddress(val)
+	case 0x4013:
+		apu.dmc.wLength(val)
+	case 0x400A:
+		apu.triangle.wTimerLow(val)
+	case 0x400B:
+		apu.triangle.wTimerHigh(val)
+	case 0x400C:
+		apu.noise.wCtrl(val)
+	case 0x400D:
+	case 0x400E:
+		apu.noise.wPeriod(val)
+	case 0x400F:
+		apu.noise.wLength(val)
+	case 0x4015:
+		apu.wCtrl(val)
+	case 0x4017:
+		apu.wFrameCounter(val)
+	}
+}
 
 func (a *APU) wCtrl(val byte) {
 	a.square1.enabled = val&1 == 1
