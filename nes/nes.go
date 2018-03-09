@@ -12,6 +12,8 @@ type NES struct {
 	CPU       *CPU
 	Cartridge *Cartridge
 	PPU       *PPU
+	Controller1 *Controller
+	Controller2 *Controller
 	RAM       []byte
 	CPUMemory Memory
 	PPUMemory Memory
@@ -25,12 +27,14 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{path, nil, nil, cartidge, nil, ram, nil, nil}
+	nes := NES{path, nil, nil, cartidge, nil, nil,nil,ram, nil, nil}
 	nes.APU = NewAPU(&nes)
 	nes.CPUMemory = NewCPUMemory(&nes)
 	nes.PPUMemory = NewPPUMemory(&nes)
 	nes.CPU = NewCPU(nes.CPUMemory)
 	nes.PPU = NewPPU(&nes)
+	nes.Controller1 = NewController()
+	nes.Controller2 = NewController()
 	return &nes, nil
 }
 
@@ -56,3 +60,12 @@ func (n *NES) FrameRun() {
 func (n *NES) Buffer() *image.RGBA {
 	return n.PPU.back
 }
+
+func (n *NES) SetKeyPressed(controller, btn int, press bool) {
+	switch controller {
+		case 1:
+		n.Controller1.SetPressed(btn, press)
+		case 2:
+		n.Controller2.SetPressed(btn, press)
+			}
+	}

@@ -27,8 +27,10 @@ func (mem *CPUMemory) Read(address uint16) byte {
 		return mem.nes.PPU.ReadRegister(address)
 	case address == 0x4015:
 		return mem.nes.APU.ReadRegister(address)
-	case address < 0x4020:
-		return 0
+	case address == 0x4016:
+		mem.nes.Controller1.Read();
+	case address == 0x4017:
+		mem.nes.Controller2.Read();
 	case address >= 0x6000:
 		return mem.nes.Cartridge.Read(address)
 	default:
@@ -49,10 +51,10 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 		mem.nes.PPU.WriteRegister(address, val)
 	case address == 0x4015:
 		mem.nes.APU.WriteRegister(address, val)
-	case address < 0x4017:
-		return
+	case address == 0x4016:
+		mem.nes.Controller1.Write(val)
 	case address == 0x4017:
-		mem.nes.APU.WriteRegister(address, val)
+		mem.nes.Controller2.Write(val)
 	case address >= 0x6000:
 		mem.nes.Cartridge.Write(address, val)
 		return
