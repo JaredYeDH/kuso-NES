@@ -24,14 +24,14 @@ const (
 // TODO: Change Keys Dynamically
 
 func getKeys(window *glfw.Window, nes *nes.NES) {
-	nes.SetKeyPressed(1, BA, window.GetKey(glfw.KeyZ) == glfw.Press)
-	nes.SetKeyPressed(1, BB, window.GetKey(glfw.KeyX) == glfw.Press)
-	nes.SetKeyPressed(1, BSelect, window.GetKey(glfw.KeyRightShift) == glfw.Press)
-	nes.SetKeyPressed(1, BStart, window.GetKey(glfw.KeyEnter) == glfw.Press)
-	nes.SetKeyPressed(1, BUp, window.GetKey(glfw.KeyUp) == glfw.Press)
-	nes.SetKeyPressed(1, BDown, window.GetKey(glfw.KeyDown) == glfw.Press)
-	nes.SetKeyPressed(1, BLeft, window.GetKey(glfw.KeyLeft) == glfw.Press)
-	nes.SetKeyPressed(1, BRight, window.GetKey(glfw.KeyRight) == glfw.Press)
+	nes.SetKeyPressed(1, BA, window.GetKey(glfw.KeyJ) == glfw.Press)
+	nes.SetKeyPressed(1, BB, window.GetKey(glfw.KeyK) == glfw.Press)
+	nes.SetKeyPressed(1, BSelect, window.GetKey(glfw.KeyF) == glfw.Press)
+	nes.SetKeyPressed(1, BStart, window.GetKey(glfw.KeyH) == glfw.Press)
+	nes.SetKeyPressed(1, BUp, window.GetKey(glfw.KeyW) == glfw.Press)
+	nes.SetKeyPressed(1, BDown, window.GetKey(glfw.KeyS) == glfw.Press)
+	nes.SetKeyPressed(1, BLeft, window.GetKey(glfw.KeyA) == glfw.Press)
+	nes.SetKeyPressed(1, BRight, window.GetKey(glfw.KeyD) == glfw.Press)
 }
 
 func Run(nes *nes.NES) {
@@ -89,6 +89,7 @@ func setTexture(texture uint32, im *image.RGBA) {
 // Draw
 
 func draw(win *glfw.Window) {
+	runtime.LockOSThread()
 	w, h := win.GetFramebufferSize()
 	aspect := float32(w) / float32(h)
 	var x, y, size float32

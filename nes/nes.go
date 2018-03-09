@@ -7,16 +7,16 @@ import (
 // Early support file for testing the CPU
 
 type NES struct {
-	FileName  string
-	APU       *APU
-	CPU       *CPU
-	Cartridge *Cartridge
-	PPU       *PPU
+	FileName    string
+	APU         *APU
+	CPU         *CPU
+	Cartridge   *Cartridge
+	PPU         *PPU
 	Controller1 *Controller
 	Controller2 *Controller
-	RAM       []byte
-	CPUMemory Memory
-	PPUMemory Memory
+	RAM         []byte
+	CPUMemory   Memory
+	PPUMemory   Memory
 }
 
 func NewNES(path string) (*NES, error) {
@@ -27,7 +27,7 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{path, nil, nil, cartidge, nil, nil,nil,ram, nil, nil}
+	nes := NES{path, nil, nil, cartidge, nil, nil, nil, ram, nil, nil}
 	nes.APU = NewAPU(&nes)
 	nes.CPUMemory = NewCPUMemory(&nes)
 	nes.PPUMemory = NewPPUMemory(&nes)
@@ -63,9 +63,9 @@ func (n *NES) Buffer() *image.RGBA {
 
 func (n *NES) SetKeyPressed(controller, btn int, press bool) {
 	switch controller {
-		case 1:
+	case 1:
 		n.Controller1.SetPressed(btn, press)
-		case 2:
+	case 2:
 		n.Controller2.SetPressed(btn, press)
-			}
 	}
+}

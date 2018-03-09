@@ -45,15 +45,15 @@ func LoadNES(path string) (*Cartridge, error) {
 		return nil, errors.New("Magic Number is Wrong.Invilid iNES file.")
 	}
 
-	mapper1 := int(header.Ctrl1) >> 4
-	mapper2 := int(header.Ctrl2) >> 4
+	mapper1 := header.Ctrl1 >> 4
+	mapper2 := header.Ctrl2 >> 4
 	mapper := mapper1 | mapper2<<4
 
-	mirror1 := int(header.Ctrl1) & 1
-	mirror2 := int(header.Ctrl1>>3) & 1
+	mirror1 := header.Ctrl1 & 1
+	mirror2 := header.Ctrl1 >> 3 & 1
 	mirror := mirror1 | mirror2<<1
 
-	battery := (header.Ctrl1 >> 1 & 1) == 1
+	battery := header.Ctrl1 >> 1 & 1
 
 	if header.Ctrl1&0x4 == 0x4 {
 		trainer := make([]byte, 512)
@@ -65,26 +65,24 @@ func LoadNES(path string) (*Cartridge, error) {
 
 	// PRG -- 16 KB each
 
-	prg := make([]byte, int(header.PRGNum)*(16*(1<<10)))
+	prg := make([]byte, int(header.PRGNum)*(16384))
 
 	if _, err := io.ReadFull(file, prg); err != nil {
 		return nil, fmt.Errorf("Error in reading PRG ROM: %v", err)
 	}
 
+	var chr []byte
 	// CHR -- 8 KB each
-
-	chr := make([]byte, int(header.CHRNum)*(8*(1<<10)))
-
+	if header.CHRNum != 0 {
+		chr = make([]byte, int(header.CHRNum)*(8192))
+	} else {
+		chr = make([]byte, 8192)
+	}
 	if _, err := io.ReadFull(file, chr); err != nil {
 		return nil, fmt.Errorf("Error in reading CHR ROM: %v", err)
 	}
 
-	// SRAM -- 8 KB each
-
-	sram := make([]byte, (8 * (1 << 10)))
-
 	//Now every thing is OK, return thr cartridge
 
-	cartridge := Cartridge{prg, chr, sram, mapper, mirror, battery}
-	return &cartridge, nil
+	return NewCartridge(prg, chr, mapper, mirror, battery), nil
 }

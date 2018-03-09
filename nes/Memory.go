@@ -28,9 +28,9 @@ func (mem *CPUMemory) Read(address uint16) byte {
 	case address == 0x4015:
 		return mem.nes.APU.ReadRegister(address)
 	case address == 0x4016:
-		mem.nes.Controller1.Read();
+		mem.nes.Controller1.Read()
 	case address == 0x4017:
-		mem.nes.Controller2.Read();
+		mem.nes.Controller2.Read()
 	case address >= 0x6000:
 		return mem.nes.Cartridge.Read(address)
 	default:
@@ -55,6 +55,8 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 		mem.nes.Controller1.Write(val)
 	case address == 0x4017:
 		mem.nes.Controller2.Write(val)
+	case address < 0x4020:
+		return
 	case address >= 0x6000:
 		mem.nes.Cartridge.Write(address, val)
 		return
@@ -104,7 +106,7 @@ func (mem *PPUMemory) Write(address uint16, val byte) {
 		mem.nes.PPU.nameTableData[address%2048] = val
 		return
 	case address < 0x4000:
-		mem.nes.PPU.palette[address%32] = val
+		mem.nes.PPU.wPalette(address%32, val)
 		return
 	default:
 		log.Fatalf("PPUMemory: Unknown write at address: 0x%04X", address)

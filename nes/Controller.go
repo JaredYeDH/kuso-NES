@@ -2,8 +2,8 @@ package nes
 
 type Controller struct {
 	button [8]byte
-	index   byte
-	strobe  byte
+	index  byte
+	strobe byte
 }
 
 func NewController() *Controller {
