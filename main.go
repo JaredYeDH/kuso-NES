@@ -19,7 +19,9 @@ func main() {
 		fmt.Println("Usage: kuso-NES <NES Rom Path>")
 		os.Exit(EXEC_FAILED)
 	}
-	nes, err := nes.NewNES(os.Args[1])
+	path := nes.ReadFile(os.Args[1])
+	log.Print(path)
+	nes, err := nes.NewNES(path)
 	if err != nil {
 		log.Fatalln(err)
 	}
