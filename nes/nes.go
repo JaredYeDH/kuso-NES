@@ -9,12 +9,13 @@ import (
 type NES struct {
 	FileName    string
 	APU         *APU
-	CPU         *CPU
 	Cartridge   *Cartridge
-	PPU         *PPU
 	Controller1 *Controller
 	Controller2 *Controller
+	CPU         *CPU
+	PPU         *PPU
 	RAM         []byte
+	Mapper      Mapper
 	CPUMemory   Memory
 	PPUMemory   Memory
 }
@@ -27,7 +28,12 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{path, nil, nil, cartidge, nil, nil, nil, ram, nil, nil}
+	nes := NES{path, nil, cartidge, nil, nil, nil, nil, ram, nil, nil, nil}
+	mapper, err := NewMapper(&nes)
+	if err != nil {
+		return nil, err
+	}
+	nes.Mapper = mapper
 	nes.APU = NewAPU(&nes)
 	nes.CPUMemory = NewCPUMemory(&nes)
 	nes.PPUMemory = NewPPUMemory(&nes)
