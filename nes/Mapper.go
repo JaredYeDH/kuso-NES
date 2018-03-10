@@ -12,10 +12,10 @@ type Mapper interface {
 }
 
 func NewMapper(nes *NES) (Mapper, error) {
-	log.Printf("Mapper type: %d",nes.Cartridge.Mapper)
+	log.Printf("Mapper type: %d", nes.Cartridge.Mapper)
 	switch nes.Cartridge.Mapper {
-	case 0,2:
-		return NewMapper2(nes.Cartridge),nil
+	case 0, 2:
+		return NewMapper2(nes.Cartridge), nil
 	}
 	return nil, fmt.Errorf("Unknown mapper unmber: %d", nes.Cartridge.Mapper)
 }

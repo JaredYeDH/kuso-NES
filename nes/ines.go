@@ -75,9 +75,10 @@ func LoadNES(path string) (*Cartridge, error) {
 	// CHR -- 8 KB each
 	if header.CHRNum != 0 {
 		chr = make([]byte, int(header.CHRNum)*(8192))
-	if _, err := io.ReadFull(file, chr); err != nil {
-		return nil, fmt.Errorf("Error in reading CHR ROM: %v", err)
-	}} else {
+		if _, err := io.ReadFull(file, chr); err != nil {
+			return nil, fmt.Errorf("Error in reading CHR ROM: %v", err)
+		}
+	} else {
 		chr = make([]byte, 8192)
 	}
 

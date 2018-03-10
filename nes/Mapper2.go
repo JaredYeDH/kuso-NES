@@ -2,9 +2,9 @@ package nes
 
 import "log"
 
-type Mapper2 struct{
+type Mapper2 struct {
 	*Cartridge
-	prgBank int
+	prgBank  int
 	prgBank1 int
 	prgBank2 int
 }
@@ -12,11 +12,11 @@ type Mapper2 struct{
 func NewMapper2(c *Cartridge) Mapper {
 	prgBank := len(c.PRG) / 0x4000
 	prgBank1 := 0
-	prgBank2 := prgBank -1
-	return &Mapper2{c,prgBank,prgBank1,prgBank2}
+	prgBank2 := prgBank - 1
+	return &Mapper2{c, prgBank, prgBank1, prgBank2}
 }
 
-func (m *Mapper2)Read(address uint16) byte {
+func (m *Mapper2) Read(address uint16) byte {
 	switch {
 	case address < 0x2000:
 		return m.CHR[address]
@@ -35,7 +35,7 @@ func (m *Mapper2)Read(address uint16) byte {
 	return 0
 }
 
-func (m *Mapper2)Write(address uint16,val byte) {
+func (m *Mapper2) Write(address uint16, val byte) {
 	switch {
 	case address < 0x2000:
 		m.CHR[address] = val
@@ -49,6 +49,6 @@ func (m *Mapper2)Write(address uint16,val byte) {
 	}
 }
 
-func (m *Mapper2)Run() {
+func (m *Mapper2) Run() {
 	return
 }

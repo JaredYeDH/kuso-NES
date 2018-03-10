@@ -20,9 +20,9 @@ func (c *Controller) Release(button int) {
 
 func (c *Controller) SetPressed(button int, pressed bool) {
 	if pressed {
-		c.button[button] = 1
+		c.Press(button)
 	} else {
-		c.button[button] = 0
+		c.Release(button)
 	}
 }
 
