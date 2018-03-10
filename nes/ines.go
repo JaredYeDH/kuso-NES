@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const NESMagicMumber = 0x1a53454e //"NES\sub"
+const NESMagicMumber = 0x1a53454e //"NES^Z"
 
 type NESFileHeader struct {
 	MagicNumber uint32  // NES Magic Number,must be 0x1a53454e
@@ -75,11 +75,10 @@ func LoadNES(path string) (*Cartridge, error) {
 	// CHR -- 8 KB each
 	if header.CHRNum != 0 {
 		chr = make([]byte, int(header.CHRNum)*(8192))
-	} else {
-		chr = make([]byte, 8192)
-	}
 	if _, err := io.ReadFull(file, chr); err != nil {
 		return nil, fmt.Errorf("Error in reading CHR ROM: %v", err)
+	}} else {
+		chr = make([]byte, 8192)
 	}
 
 	//Now every thing is OK, return thr cartridge

@@ -87,7 +87,8 @@ func (mem *PPUMemory) Read(address uint16) byte {
 	case address < 0x2000:
 		return mem.nes.Cartridge.Read(address)
 	case address < 0x3F00:
-		return mem.nes.PPU.nameTableData[address%2048]
+		mode := mem.nes.Cartridge.Mirror
+		return mem.nes.PPU.nameTableData[MirrorAddress(mode, address)%2048]
 	case address < 0x4000:
 		return mem.nes.PPU.palette[address%32]
 	default:
@@ -103,7 +104,8 @@ func (mem *PPUMemory) Write(address uint16, val byte) {
 		mem.nes.Cartridge.Write(address, val)
 		return
 	case address < 0x3F00:
-		mem.nes.PPU.nameTableData[address%2048] = val
+		mode := mem.nes.Cartridge.Mirror
+		mem.nes.PPU.nameTableData[MirrorAddress(mode, address)%2048] = val
 		return
 	case address < 0x4000:
 		mem.nes.PPU.wPalette(address%32, val)

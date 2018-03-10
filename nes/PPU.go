@@ -79,29 +79,25 @@ type PPU struct {
 }
 
 func NewPPU(nes *NES) *PPU {
-	ppu := PPU{Memory: nes.PPUMemory, NES: nes}
-	ppu.Reset()
+	ppu := PPU{Memory: NewPPUMemory(nes), NES: nes}
 	ppu.front = image.NewRGBA(image.Rect(0, 0, 256, 240))
 	ppu.back = image.NewRGBA(image.Rect(0, 0, 256, 240))
+	ppu.Reset()
 	return &ppu
 }
 
 func (p *PPU) Reset() {
-
-	p.wCtrl(0)
-	p.wMask(0)
-	p.wOAMAddr(0)
-
 	p.Cycle = 340
 	p.ScanLine = 240
 	p.Frame = 0
+	p.wCtrl(0)
+	p.wMask(0)
+	p.wOAMAddr(0)
 }
 
 // Run runs a PPU cycle per execution
 
-func (p *PPU) Run() {
-
-	// Update
+func (p *PPU) tik() {
 	if p.nmiDelay > 0 {
 		p.nmiDelay--
 		if p.nmiDelay == 0 && p.nmiOutput && p.nmiOccurred {
@@ -109,23 +105,29 @@ func (p *PPU) Run() {
 		}
 	}
 
-	if (p.f == 1 && p.ScanLine == 261 && p.Cycle == 339) && (p.fShowBackground != 0 || p.fShowSprites != 0) {
-		p.Cycle = 0
-		p.ScanLine = 0
-		p.Frame++
-		p.f = p.f ^ 1
-	} else {
-		p.Cycle++
-		if p.Cycle > 340 {
+	if p.fShowBackground != 0 || p.fShowSprites != 0 {
+		if p.f == 1 && p.ScanLine == 261 && p.Cycle == 339 {
 			p.Cycle = 0
-			p.ScanLine++
-			if p.ScanLine > 261 {
-				p.ScanLine = 0
-				p.Frame++
-				p.f = p.f ^ 1
-			}
+			p.ScanLine = 0
+			p.Frame++
+			p.f ^= 1
+			return
 		}
 	}
+	p.Cycle++
+	if p.Cycle > 340 {
+		p.Cycle = 0
+		p.ScanLine++
+		if p.ScanLine > 261 {
+			p.ScanLine = 0
+			p.Frame++
+			p.f ^= 1
+		}
+	}
+}
+
+func (p *PPU) Run() {
+	p.tik()
 
 	if p.fShowBackground != 0 || p.fShowSprites != 0 {
 		if p.ScanLine < 240 && p.Cycle >= 1 && p.Cycle <= 256 {
@@ -182,17 +184,33 @@ func (p *PPU) Run() {
 	}
 }
 
+// Palette
+
+func (p *PPU) rPalette(address uint16) byte {
+	if address >= 16 && address%4 == 0 {
+		address = address - 16
+	}
+	return p.palette[address]
+}
+
+func (p *PPU) wPalette(address uint16, val byte) {
+	if address >= 16 && address%4 == 0 {
+		address = address - 16
+	}
+	p.palette[address] = val
+}
+
 // Registers
 // Ref: http://wiki.nesdev.com/w/index.php/PPU_registers
 // And a countless number of documents from the internet.
 
 func (p *PPU) ReadRegister(address uint16) byte {
-	switch address % 0x2000 {
-	case 2:
+	switch address  {
+	case 0x2002:
 		return p.rStatus()
-	case 4:
+	case 0x2004:
 		return p.rOAMData()
-	case 7:
+	case 0x2007:
 		return p.rData()
 	}
 	return 0
@@ -200,22 +218,22 @@ func (p *PPU) ReadRegister(address uint16) byte {
 
 func (p *PPU) WriteRegister(address uint16, val byte) {
 	p.register = val
-	switch address % 0x2000 {
-	case 0:
+	switch address{
+	case 0x2000:
 		p.wCtrl(val)
-	case 1:
+	case 0x2001:
 		p.wMask(val)
-	case 3:
+	case 0x2003:
 		p.wOAMAddr(val)
-	case 4:
+	case 0x2004:
 		p.wOAMData(val)
-	case 5:
+	case 0x2005:
 		p.wScroll(val)
-	case 6:
+	case 0x2006:
 		p.wAddr(val)
-	case 7:
+	case 0x2007:
 		p.wData(val)
-	case 14:
+	case 0x4014:
 		p.wOAMDMA(val)
 
 	}
@@ -232,15 +250,15 @@ func (p *PPU) nChange() {
 // $2000 - PPUCTRL
 
 func (p *PPU) wCtrl(val byte) {
-	p.fNameTable = val&1 | (((val >> 1) & 1) << 1)
+	p.fNameTable = val & 3
 	p.fIncrement = (val >> 2) & 1
 	p.fSpriteTable = (val >> 3) & 1
 	p.fBackgroundTable = (val >> 4) & 1
-	p.fSpriteTable = (val >> 5) & 1
+	p.fSpriteSize = (val >> 5) & 1
 	p.fMasterSlave = (val >> 6) & 1
 	p.nmiOutput = ((val >> 7) & 1) == 1
 	p.nChange()
-	p.t = (p.t & 0xF3FF) | uint16(val&1|(((val>>1)&1)<<1)<<10)
+	p.t = (p.t & 0xF3FF) | ((uint16(val) & 0x03) << 10)
 }
 
 // $2001 - PPUMASK
@@ -295,7 +313,7 @@ func (p *PPU) wScroll(val byte) {
 		p.x = val & 7
 		p.w = 1
 	} else {
-		p.t = (p.t & 0x8FFF) | ((uint16(val) & 7) << 12)
+		p.t = (p.t & 0x8FFF) | ((uint16(val) & 0x7) << 12)
 		p.t = (p.t & 0xFC1F) | ((uint16(val) & 0xF8) << 2)
 		p.w = 0
 	}
@@ -330,7 +348,7 @@ func (p *PPU) rData() byte {
 	if p.fIncrement == 0 {
 		p.v++
 	} else {
-		p.v += 1 << 5
+		p.v += 32
 	}
 
 	return out
@@ -343,7 +361,7 @@ func (p *PPU) wData(val byte) {
 	if p.fIncrement == 0 {
 		p.v++
 	} else {
-		p.v += 1 << 5
+		p.v += 32
 	}
 }
 
@@ -357,25 +375,9 @@ func (p *PPU) wOAMDMA(value byte) {
 		address++
 	}
 	p.NES.CPU.stall += 513
-	if p.NES.CPU.Cycles&1 == 1 {
+	if p.NES.CPU.Cycles%2 == 1 {
 		p.NES.CPU.stall++
 	}
-}
-
-// Palette
-
-func (p *PPU) rPalette(address uint16) byte {
-	if address >= 16 && address%4 == 0 {
-		address = address - 16
-	}
-	return p.palette[address]
-}
-
-func (p *PPU) wPalette(address uint16, val byte) {
-	if address >= 16 && address%4 == 0 {
-		address = address - 16
-	}
-	p.palette[address] = val
 }
 
 func (p *PPU) iHori() {
@@ -426,13 +428,13 @@ func (p *PPU) clrVertBlank() {
 
 func (p *PPU) getNtableByte() {
 	v := p.v
-	address := (v & 0xFFF) | 0x2000
+	address := 0x2000|(v & 0x0FFF)
 	p.nameTableByte = p.Read(address)
 }
 
 func (p *PPU) getATableByte() {
 	v := p.v
-	address := 0x23C0 | (v & 0xC00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x7)
+	address := 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x7)
 	i := ((v >> 4) & 4) | (v & 2)
 	p.attributeTableByte = (((p.Read(address)) >> i) & 3) << 2
 }
@@ -484,12 +486,12 @@ func (p *PPU) spritePixel() (byte, byte) {
 		return 0, 0
 	}
 	for i := 0; i < p.spriteCount; i++ {
-		temp := p.Cycle - int(p.spritePositions[i]) - 1
+		temp := (p.Cycle - 1)- int(p.spritePositions[i])
 		if temp < 0 || temp > 7 {
 			continue
 		}
-		offset := 7 - temp
-		color := byte((p.spritePatterns[i] >> byte(offset*4)) & 0xF)
+		temp = 7 - temp
+		color := byte((p.spritePatterns[i] >> byte(temp*4)) & 0xF)
 		if color%4 == 0 {
 			continue
 		}
@@ -516,14 +518,17 @@ func (p *PPU) renderPixel() {
 	}
 
 	var color byte
-
-	if back%4 == 0 && sprite%4 == 0 {
+	b := (back%4 + 3)/4
+	s := (sprite%4 + 3)/4
+	o := b << 1 | s
+	switch o {
+	case 0:
 		color = 0
-	} else if back%4 != 0 && sprite == 0 {
+	case 1:
 		color = sprite | 0x10
-	} else if back%4 == 0 && sprite != 0 {
+	case 2:
 		color = back
-	} else {
+	case 3:
 		if p.spriteIndexes[i] == 0 && x < 255 {
 			p.fSpriteZeroHit = 1
 		}
@@ -534,7 +539,7 @@ func (p *PPU) renderPixel() {
 		}
 	}
 
-	realcolor := Palette[p.rPalette(uint16(color%64))]
+	realcolor := Palette[p.rPalette(uint16(color)%64)]
 
 	p.back.SetRGBA(x, y, realcolor)
 }

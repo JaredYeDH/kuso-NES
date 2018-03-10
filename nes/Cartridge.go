@@ -2,12 +2,6 @@ package nes
 
 import "log"
 
-const (
-	MirrorHorizontal = iota
-	MirrorVertical
-	MirrorQuad
-)
-
 type Cartridge struct {
 	PRG      []byte
 	CHR      []byte
@@ -57,7 +51,7 @@ func (c *Cartridge) Read(address uint16) byte {
 func (c *Cartridge) Write(address uint16, val byte) {
 	switch {
 	case address < 0x2000:
-		idx := c.chrBank*0x2000 + int(address)
+		idx := c.chrBank1*0x2000 + int(address)
 		c.CHR[idx] = val
 	case address >= 0x8000:
 		c.prgBank1 = int(val)

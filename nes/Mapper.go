@@ -1,6 +1,9 @@
 package nes
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 type Mapper interface {
 	Read(address uint16) byte
@@ -9,6 +12,7 @@ type Mapper interface {
 }
 
 func NewMapper(nes *NES) (Mapper, error) {
+	log.Printf("Mapper type: %d",nes.Cartridge.Mapper)
 	switch nes.Cartridge.Mapper {
 	case 0,2:
 		return NewMapper2(nes.Cartridge),nil
