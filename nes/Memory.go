@@ -32,7 +32,7 @@ func (mem *CPUMemory) Read(address uint16) byte {
 	case address == 0x4017:
 		mem.nes.Controller2.Read()
 	case address >= 0x6000:
-		return mem.nes.Cartridge.Read(address)
+		return mem.nes.Mapper.Read(address)
 	default:
 		log.Fatalf("Illegal CPU memory read at address: $%04X", address)
 	}
@@ -58,7 +58,7 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 	case address < 0x4020:
 		return
 	case address >= 0x6000:
-		mem.nes.Cartridge.Write(address, val)
+		mem.nes.Mapper.Write(address, val)
 		return
 	default:
 		log.Fatalf("Illegal CPU memory write at address: $%04X", address)
