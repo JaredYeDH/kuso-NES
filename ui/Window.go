@@ -21,6 +21,18 @@ const (
 	BRight         // D
 )
 
+// Window
+const (
+	Width   = 256
+	Height  = 240
+	Scale   = 4
+	Padding = 0
+)
+
+func init() {
+	runtime.LockOSThread()
+}
+
 // TODO: Change Keys Dynamically
 
 func getKeys(window *glfw.Window, nes *nes.NES) {
@@ -43,7 +55,7 @@ func Run(nes *nes.NES) {
 
 	glfw.WindowHint(glfw.ContextVersionMajor, 2)
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	window, err := glfw.CreateWindow(256*4, 240*4, "KUSO-NES - "+nes.FileName, nil, nil)
+	window, err := glfw.CreateWindow(Width*Scale, Height*Scale, "KUSO-NES - "+nes.FileName, nil, nil)
 	if err != nil {
 		log.Panic("GLFW CreateWindow error: ", err)
 	}
@@ -89,17 +101,17 @@ func setTexture(texture uint32, im *image.RGBA) {
 // Draw
 
 func draw(win *glfw.Window) {
-	runtime.LockOSThread()
 	w, h := win.GetFramebufferSize()
-	aspect := float32(w) / float32(h)
-	var x, y, size float32
-	size = 0.95
-	if aspect >= 1 {
-		x = size / aspect
-		y = size
+	s1 := float32(w) / float32(Width)
+	s2 := float32(h) / float32(Height)
+	f := float32(1 - Padding)
+	var x, y float32
+	if s1 < s2 {
+		x = f
+		y = f * s1 / s2
 	} else {
-		x = size
-		y = size * aspect
+		x = f * s2 / s1
+		y = f
 	}
 	gl.Begin(gl.QUADS)
 	gl.TexCoord2f(0, 1)
