@@ -1,5 +1,17 @@
 package nes
 
+// Controllers
+const (
+	BA      = iota // K
+	BB             // J
+	BSelect        // F
+	BStart         // H
+	BUp            // W
+	BDown          // S
+	BLeft          // A
+	BRight         // D
+)
+
 type Controller struct {
 	button [8]byte
 	index  byte

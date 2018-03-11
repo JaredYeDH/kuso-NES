@@ -9,11 +9,12 @@ import (
 	"os"
 	"path/filepath"
 )
+
 const Tmpdir = "tmp"
 const NESMagicNumber = 0x1a53454e // "NES^Z"
 const ZIPMagicNumber = 0x04034B50 // "PK.."
 
-func ReadFile(path string) (string,bool) {
+func ReadFile(path string) (string, bool) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Printf("Readfile : %v", err)
@@ -24,11 +25,11 @@ func ReadFile(path string) (string,bool) {
 	}
 	switch header {
 	case NESMagicNumber:
-		return path,false
+		return path, false
 	case ZIPMagicNumber:
-		return Zip(path),true
+		return Zip(path), true
 	}
-	return "",false
+	return "", false
 }
 
 func ReadMagicNumber(w io.Reader) (uint32, error) {
@@ -69,11 +70,11 @@ func findNES(dirname string) string {
 }
 
 func RemoveDir(path string) error {
-	dir,err := ioutil.ReadDir(path)
+	dir, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
 	}
-	for _,file := range dir {
+	for _, file := range dir {
 		if file.IsDir() {
 			RemoveDir(path + "/" + file.Name())
 		} else {

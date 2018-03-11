@@ -28,7 +28,9 @@ func NewNES(path string) (*NES, error) {
 	}
 
 	ram := make([]byte, 2048)
-	nes := NES{path, nil, cartidge, nil, nil, nil, nil, ram, nil, nil, nil}
+	Controller1 := NewController()
+	Controller2 := NewController()
+	nes := NES{path, nil, cartidge, Controller1, Controller2, nil, nil, ram, nil, nil, nil}
 	mapper, err := NewMapper(&nes)
 	if err != nil {
 		return nil, err
@@ -39,8 +41,6 @@ func NewNES(path string) (*NES, error) {
 	nes.PPUMemory = NewPPUMemory(&nes)
 	nes.CPU = NewCPU(nes.CPUMemory)
 	nes.PPU = NewPPU(&nes)
-	nes.Controller1 = NewController()
-	nes.Controller2 = NewController()
 	return &nes, nil
 }
 

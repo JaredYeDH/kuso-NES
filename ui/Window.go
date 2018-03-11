@@ -10,18 +10,6 @@ import (
 	"time"
 )
 
-// Controllers
-const (
-	BA      = iota // J
-	BB             // K
-	BSelect        // F
-	BStart         // H
-	BUp            // W
-	BDown          // S
-	BLeft          // A
-	BRight         // D
-)
-
 // Window
 const (
 	Width   = 256
@@ -36,15 +24,19 @@ func init() {
 
 // TODO: Change Keys Dynamically
 
-func getKeys(window *glfw.Window, nes *nes.NES) {
-	nes.SetKeyPressed(1, BA, window.GetKey(glfw.KeyJ) == glfw.Press)
-	nes.SetKeyPressed(1, BB, window.GetKey(glfw.KeyK) == glfw.Press)
-	nes.SetKeyPressed(1, BSelect, window.GetKey(glfw.KeyF) == glfw.Press)
-	nes.SetKeyPressed(1, BStart, window.GetKey(glfw.KeyH) == glfw.Press)
-	nes.SetKeyPressed(1, BUp, window.GetKey(glfw.KeyW) == glfw.Press)
-	nes.SetKeyPressed(1, BDown, window.GetKey(glfw.KeyS) == glfw.Press)
-	nes.SetKeyPressed(1, BLeft, window.GetKey(glfw.KeyA) == glfw.Press)
-	nes.SetKeyPressed(1, BRight, window.GetKey(glfw.KeyD) == glfw.Press)
+func readKey(window *glfw.Window, key glfw.Key) bool {
+	return window.GetKey(key) == glfw.Press
+}
+
+func getKeys(window *glfw.Window, n *nes.NES) {
+	n.SetKeyPressed(1, nes.BA, readKey(window, glfw.KeyK))
+	n.SetKeyPressed(1, nes.BB, readKey(window, glfw.KeyJ))
+	n.SetKeyPressed(1, nes.BSelect, readKey(window, glfw.KeyF))
+	n.SetKeyPressed(1, nes.BStart, readKey(window, glfw.KeyH))
+	n.SetKeyPressed(1, nes.BUp, readKey(window, glfw.KeyW))
+	n.SetKeyPressed(1, nes.BDown, readKey(window, glfw.KeyS))
+	n.SetKeyPressed(1, nes.BLeft, readKey(window, glfw.KeyA))
+	n.SetKeyPressed(1, nes.BRight, readKey(window, glfw.KeyD))
 }
 
 func Run(nes *nes.NES) {
@@ -77,22 +69,25 @@ func Run(nes *nes.NES) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-
 	var Frame uint64
+	t1 := time.Now()
 	for window.ShouldClose() == false {
 		getKeys(window, nes)
 		nes.FrameRun()
 		setTexture(texture, nes.Buffer())
 		// render frame
-		time.Sleep(time.Millisecond*8)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		draw(window)
-		Frame ++
-		if Frame % 60 == 0{
-			log.Print("60 Frame generated.")
-		}
+		Frame++
 		window.SwapBuffers()
 		glfw.PollEvents()
+		time.Sleep(time.Millisecond * 5)
+		t2 := time.Now()
+		if t2.Sub(t1) > time.Second {
+			log.Printf("Fps: %v", Frame)
+			Frame = 0
+			t1 = t2
+		}
 	}
 }
 
@@ -100,6 +95,7 @@ func Run(nes *nes.NES) {
 
 func setTexture(texture uint32, im *image.RGBA) {
 	size := im.Rect.Size()
+	gl.BindTexture(gl.TEXTURE_2D, texture)
 	gl.TexImage2D(
 		gl.TEXTURE_2D, 0, gl.RGBA,
 		int32(size.X), int32(size.Y),

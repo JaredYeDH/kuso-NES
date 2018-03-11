@@ -28,13 +28,13 @@ func (mem *CPUMemory) Read(address uint16) byte {
 	case address == 0x4015:
 		return mem.nes.APU.ReadRegister(address)
 	case address == 0x4016:
-		mem.nes.Controller1.Read()
+		return mem.nes.Controller1.Read()
 	case address == 0x4017:
-		mem.nes.Controller2.Read()
+		return mem.nes.Controller2.Read()
 	case address >= 0x6000:
 		return mem.nes.Mapper.Read(address)
 	default:
-		log.Fatalf("Illegal CPU memory read at address: $%04X", address)
+		log.Printf("Illegal CPU memory read at address: $%04X", address)
 	}
 	return 0
 }
@@ -61,7 +61,8 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 		mem.nes.Mapper.Write(address, val)
 		return
 	default:
-		log.Fatalf("Illegal CPU memory write at address: $%04X", address)
+		return
+		log.Printf("Illegal CPU memory write at address: $%04X", address)
 	}
 }
 
@@ -90,7 +91,7 @@ func (mem *PPUMemory) Read(address uint16) byte {
 		mode := mem.nes.Cartridge.Mirror
 		return mem.nes.PPU.nameTableData[MirrorAddress(mode, address)%2048]
 	case address < 0x4000:
-		return mem.nes.PPU.palette[address%32]
+		return mem.nes.PPU.rPalette(address % 32)
 	default:
 		log.Fatalf("PPUMemory: Unknown read at address: 0x%04X", address)
 	}
