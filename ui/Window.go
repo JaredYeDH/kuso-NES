@@ -7,6 +7,7 @@ import (
 	"image"
 	"log"
 	"runtime"
+	"time"
 )
 
 // Controllers
@@ -76,13 +77,20 @@ func Run(nes *nes.NES) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
+
+	var Frame uint64
 	for window.ShouldClose() == false {
 		getKeys(window, nes)
 		nes.FrameRun()
 		setTexture(texture, nes.Buffer())
 		// render frame
+		time.Sleep(time.Millisecond*8)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		draw(window)
+		Frame ++
+		if Frame % 60 == 0{
+			log.Print("60 Frame generated.")
+		}
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}

@@ -1,6 +1,8 @@
 package nes
 
-import "image"
+import (
+	"image"
+)
 
 // Ref: http://nesdev.com/2C02%20technical%20reference.TXT
 //      And a lot of blogs, wikis, and so on.
