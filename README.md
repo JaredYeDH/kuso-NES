@@ -10,7 +10,7 @@ Although technology has improved dramatically since the NES, many excellent game
 
 - [ ] Audio Output
 
-- [ ] Cartige
+- [x] Cartige
 
 - [ ] Console
 
@@ -20,12 +20,12 @@ Although technology has improved dramatically since the NES, many excellent game
 
 - [ ] Mapper
 
-- [ ] Memory
+- [x] Memory
 
-- [ ] Palette
+- [x] Palette
 
-- [ ] PPU
+- [x] PPU
 
-- [ ] UI
+- [x] UI
 
-- [ ] Video Ouput
+- [x] Video Ouput
