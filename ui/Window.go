@@ -18,8 +18,15 @@ const (
 	Padding = 0
 )
 
+var surpriseMotherFucker bool
+
 func init() {
 	runtime.LockOSThread()
+	if runtime.GOOS == "windows" {
+		surpriseMotherFucker = true
+	} else {
+		surpriseMotherFucker = false
+	}
 }
 
 // TODO: Change Keys Dynamically
@@ -81,7 +88,11 @@ func Run(nes *nes.NES) {
 		Frame++
 		window.SwapBuffers()
 		glfw.PollEvents()
-		time.Sleep(time.Millisecond * 5)
+		if surpriseMotherFucker { // Windows
+			time.Sleep(time.Millisecond * 11)
+		} else {
+			time.Sleep(time.Millisecond * 8)
+		}
 		t2 := time.Now()
 		if t2.Sub(t1) > time.Second {
 			log.Printf("Fps: %v", Frame)
