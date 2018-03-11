@@ -9,11 +9,11 @@ import (
 	"os"
 	"path/filepath"
 )
-
+const Tmpdir = "tmp"
 const NESMagicNumber = 0x1a53454e // "NES^Z"
 const ZIPMagicNumber = 0x04034B50 // "PK.."
 
-func ReadFile(path string) string {
+func ReadFile(path string) (string,bool) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Printf("Readfile : %v", err)
@@ -24,11 +24,11 @@ func ReadFile(path string) string {
 	}
 	switch header {
 	case NESMagicNumber:
-		return path
+		return path,false
 	case ZIPMagicNumber:
-		return Zip(path)
+		return Zip(path),true
 	}
-	return ""
+	return "",false
 }
 
 func ReadMagicNumber(w io.Reader) (uint32, error) {
@@ -48,26 +48,53 @@ func isNES(path string) bool {
 	return header == NESMagicNumber
 }
 
-func Zip(path string) string {
-	tmpdir := "tmp/"
-
-	err := unzip(path, tmpdir)
+func findNES(dirname string) string {
+	dir, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		log.Fatal(err)
-		return ""
-	}
-	dir, err := ioutil.ReadDir(tmpdir)
-	if err != nil {
-		log.Fatal(err)
-		return ""
+		log.Printf("Find nes in %v : %v", dirname, err)
 	}
 	for _, file := range dir {
-		log.Print(file.Name())
-		if isNES(tmpdir + file.Name()) {
-			return tmpdir + file.Name()
+		if file.IsDir() {
+			res := findNES(dirname + "/" + file.Name())
+			if res != "" {
+				return res
+			}
+		}
+		if isNES(dirname + "/" + file.Name()) {
+			return dirname + "/" + file.Name()
 		}
 	}
+	log.Fatal("Can't find any nes rom file in the zip.")
 	return ""
+}
+
+func RemoveDir(path string) error {
+	dir,err := ioutil.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _,file := range dir {
+		if file.IsDir() {
+			RemoveDir(path + "/" + file.Name())
+		} else {
+			err := os.Remove(path + "/" + file.Name())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	err = os.Remove(path)
+	return err
+}
+
+func Zip(path string) string {
+
+	err := unzip(path, Tmpdir)
+	if err != nil {
+		log.Fatal(err)
+		return ""
+	}
+	return findNES(Tmpdir)
 }
 
 func unzip(archive, target string) error {
