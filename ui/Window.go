@@ -3,11 +3,11 @@ package ui
 import (
 	"github.com/go-gl/gl/all-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/gordonklaus/portaudio"
 	"github.com/kuso-kodo/kuso-NES/nes"
 	"image"
 	"log"
 	"runtime"
-	"time"
 )
 
 // Window
@@ -18,15 +18,9 @@ const (
 	Padding = 0
 )
 
-var surpriseMotherFucker bool
-
 func init() {
+	runtime.GOMAXPROCS(2)
 	runtime.LockOSThread()
-	if runtime.GOOS == "windows" {
-		surpriseMotherFucker = true
-	} else {
-		surpriseMotherFucker = false
-	}
 }
 
 // TODO: Change Keys Dynamically
@@ -47,6 +41,8 @@ func getKeys(window *glfw.Window, n *nes.NES) {
 }
 
 func Run(nes *nes.NES) {
+	portaudio.Initialize()
+	defer portaudio.Terminate()
 	err := glfw.Init()
 	if err != nil {
 		panic(err)
@@ -76,29 +72,28 @@ func Run(nes *nes.NES) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-	var Frame uint64
-	t1 := time.Now()
+	t1 := glfw.GetTime()
+
+	audio := NewAudio()
+	nes.SetAPUChannel(audio.channel)
+	if audio.Start() != nil {
+		log.Panic(err)
+	}
+	nes.SetAPUSRate(audio.sampleRate)
+	defer audio.Stop()
+
 	for window.ShouldClose() == false {
+		now := glfw.GetTime()
+		d := now - t1
+		t1 = now
 		getKeys(window, nes)
-		nes.FrameRun()
+		nes.RunSeconds(d)
 		setTexture(texture, nes.Buffer())
 		// render frame
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		draw(window)
-		Frame++
 		window.SwapBuffers()
 		glfw.PollEvents()
-		if surpriseMotherFucker { // Windows
-			time.Sleep(time.Millisecond * 11)
-		} else {
-			time.Sleep(time.Millisecond * 8)
-		}
-		t2 := time.Now()
-		if t2.Sub(t1) > time.Second {
-			log.Printf("Fps: %v", Frame)
-			Frame = 0
-			t1 = t2
-		}
 	}
 }
 

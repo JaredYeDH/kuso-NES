@@ -2,6 +2,7 @@ package nes
 
 import (
 	"image"
+	"log"
 )
 
 // Early support file for testing the CPU
@@ -52,19 +53,23 @@ func (nes *NES) Run() int {
 	cpuCycles := nes.CPU.Run()
 	for i := 0; i < cpuCycles*3; i++ {
 		nes.PPU.Run()
+		nes.Mapper.Run()
+	}
+	for i := 0; i < cpuCycles; i++ {
+		nes.APU.Run()
 	}
 	return cpuCycles
 }
 
-func (n *NES) FrameRun() {
-	frame := n.PPU.Frame
-	for frame == n.PPU.Frame {
-		n.Run()
+func (n *NES) RunSeconds(second float64) {
+	cycles := int(CPUFrequency * second)
+	for cycles > 0 {
+		cycles -= n.Run()
 	}
 }
 
 func (n *NES) Buffer() *image.RGBA {
-	return n.PPU.back
+	return n.PPU.front
 }
 
 func (n *NES) SetKeyPressed(controller, btn int, press bool) {
@@ -73,5 +78,23 @@ func (n *NES) SetKeyPressed(controller, btn int, press bool) {
 		n.Controller1.SetPressed(btn, press)
 	case 2:
 		n.Controller2.SetPressed(btn, press)
+	}
+}
+
+func (n *NES) SetAPUChannel(channel chan float32) {
+	n.APU.channel = channel
+}
+
+func (n *NES) SetAPUSRate(sRate float64) {
+	log.Print(sRate)
+	if sRate != 0 {
+		n.APU.sampleRate = CPUFrequency / sRate
+		n.APU.fChain = FilterChain{
+			HPassFilter(float32(sRate), 90),
+			HPassFilter(float32(sRate), 440),
+			LPassFilter(float32(sRate), 14000),
+		}
+	} else {
+		n.APU.fChain = nil
 	}
 }

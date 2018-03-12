@@ -1,6 +1,8 @@
 package ui
 
-import "github.com/gordonklaus/portaudio"
+import (
+	"github.com/gordonklaus/portaudio"
+)
 
 type Audio struct {
 	stream     *portaudio.Stream
@@ -10,22 +12,23 @@ type Audio struct {
 }
 
 func NewAudio() *Audio {
-	channel := make(chan float32, 44100) // 44.1kHz
-	return &Audio{channel: channel}
+	a := Audio{}
+	a.channel = make(chan float32, 44100) // 44.1kHz
+	return &a
 }
 
 func (a *Audio) CallBack(out []float32) {
-	var o float32
+	var output float32
 	for i := range out {
 		if i%a.outChans == 0 {
 			select {
 			case sample := <-a.channel:
-				o = sample
+				output = sample
 			default:
-				o = 0
+				output = 0
 			}
 		}
-		out[i] = o
+		out[i] = output
 	}
 }
 
@@ -37,6 +40,9 @@ func (a *Audio) Start() error {
 	para := portaudio.HighLatencyParameters(nil, hostapi.DefaultOutputDevice)
 	stream, err := portaudio.OpenStream(para, a.CallBack)
 	if err != nil {
+		return err
+	}
+	if err := stream.Start(); err != nil {
 		return err
 	}
 	a.stream = stream
