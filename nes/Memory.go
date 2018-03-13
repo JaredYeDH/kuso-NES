@@ -53,8 +53,9 @@ func (mem *CPUMemory) Write(address uint16, val byte) {
 		mem.nes.APU.WriteRegister(address, val)
 	case address == 0x4016:
 		mem.nes.Controller1.Write(val)
-	case address == 0x4017:
 		mem.nes.Controller2.Write(val)
+	case address == 0x4017:
+		mem.nes.APU.WriteRegister(address, val)
 	case address < 0x4020:
 		return
 	case address >= 0x6000:
