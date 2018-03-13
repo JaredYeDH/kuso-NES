@@ -23,8 +23,6 @@ func init() {
 	runtime.LockOSThread()
 }
 
-// TODO: Change Keys Dynamically
-
 func readKey(window *glfw.Window, key glfw.Key) bool {
 	return window.GetKey(key) == glfw.Press
 }
