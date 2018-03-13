@@ -64,6 +64,15 @@ func Run(nes *nes.NES) {
 
 	gl.Enable(gl.TEXTURE_2D)
 
+	log.Print("Audio.")
+	audio := NewAudio()
+	nes.SetAPUChannel(audio.channel)
+	if audio.Start() != nil {
+		log.Panic(err)
+	}
+	nes.SetAPUSRate(audio.sampleRate)
+	defer audio.Stop()
+
 	var texture uint32
 	gl.GenTextures(1, &texture)
 	gl.BindTexture(gl.TEXTURE_2D, texture)
@@ -74,14 +83,7 @@ func Run(nes *nes.NES) {
 
 	t1 := glfw.GetTime()
 
-	audio := NewAudio()
-	nes.SetAPUChannel(audio.channel)
-	if audio.Start() != nil {
-		log.Panic(err)
-	}
-	nes.SetAPUSRate(audio.sampleRate)
-	defer audio.Stop()
-
+	var test bool
 	for window.ShouldClose() == false {
 		now := glfw.GetTime()
 		d := now - t1
@@ -93,6 +95,10 @@ func Run(nes *nes.NES) {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		draw(window)
 		window.SwapBuffers()
+		if test != true {
+			log.Print("First.")
+			test = true
+		}
 		glfw.PollEvents()
 	}
 }
