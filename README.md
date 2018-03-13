@@ -4,28 +4,45 @@ The **N**intendo **E**ntertainment **S**ystem (NES) was the world’s most widel
 
 Although technology has improved dramatically since the NES, many excellent games were only released on that format and so are unplayable on more modern systems. However these games have been able to survive and continue to be played thanks to **emulation**, which simulates the workings of one system in order to allow software created for it to be used on a modern system. Here is one simple NES emulator written in [Golang](http://golang.org).
 
-# TODO List
+Now I've achieved my goal. This project won't get updated anymore.
 
-- [ ] APU
+# Usage
 
-- [ ] Audio Output
+For *nix users, use the following instruction:
 
-- [x] Cartige
+```bash
+kuso-NES <your .nes/.zip file path>
+```
 
-- [ ] Console
+For windows users, use the same instruction is OK. But the easiest way is just drag the rom file and drop to the kuso-NES.exe. Then it will run automaticly.
 
-- [x] CPU
+# Key Map
 
-- [ ] Input Devices
+| Keyboard | NES Controller     |
+| -------- | ------------------ |
+| W,S,A,D  | Up,Down,Left,Right |
+| K        | A                  |
+| J        | B                  |
+| F        | Select             |
+| H        | Start              |
 
-- [ ] Mapper
+# Installation
 
-- [x] Memory
+Just install the dependencies and run
 
-- [x] Palette
+``` bash
+go get github.com/kuso-kodo/kuso-NES
+```
 
-- [x] PPU
+and have a coffee. Then every thing is OK.
 
-- [x] UI
+# Dependencies
 
-- [x] Video Ouput
+[go-gl/gl](https://github.com/go-gl/gl)
+[go-gl/glfw](https://github.com/go-gl/glfw)
+[go bindings for portaudio](https://github.com/gordonklaus/portaudio)
+[portaudio](http://www.portaudio.com/)
+
+# Document
+
+If you want to build a simple NES emulator or just want to find out how NES worked.You can visit [neadev](http://nesdev.com/) for more information.

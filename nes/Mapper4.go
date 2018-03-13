@@ -7,7 +7,7 @@ import (
 
 type Mapper4 struct {
 	*Cartridge
-	nes    *NES
+	nes        *NES
 	register   byte
 	registers  [8]byte
 	prgMode    byte
@@ -141,7 +141,6 @@ func (m *Mapper4) updateOffsets() {
 	}
 }
 
-
 func (m *Mapper4) wMirror(val byte) {
 	switch val & 1 {
 	case 0:
@@ -194,7 +193,6 @@ func (m *Mapper4) chrBankOffset(index int) int {
 	}
 	return offset
 }
-
 
 func (m *Mapper4) Run() {
 	ppu := m.nes.PPU
