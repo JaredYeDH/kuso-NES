@@ -39,8 +39,11 @@ and have a coffee. Then every thing is OK.
 # Dependencies
 
 [go-gl/gl](https://github.com/go-gl/gl)
+
 [go-gl/glfw](https://github.com/go-gl/glfw)
+
 [go bindings for portaudio](https://github.com/gordonklaus/portaudio)
+
 [portaudio](http://www.portaudio.com/)
 
 # Document
