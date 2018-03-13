@@ -18,6 +18,8 @@ func NewMapper(nes *NES) (Mapper, error) {
 		return NewMapper2(nes.Cartridge), nil
 	case 1:
 		return NewMapper1(nes.Cartridge), nil
+	case 3:
+		return NewMapper3(nes.Cartridge),nil
 	}
 	return nil, fmt.Errorf("Unknown mapper unmber: %d", nes.Cartridge.Mapper)
 }
