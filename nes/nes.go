@@ -52,11 +52,11 @@ func (n *NES) Reset() {
 func (nes *NES) Run() int {
 	cpuCycles := nes.CPU.Run()
 	for i := 0; i < cpuCycles*3; i++ {
+		if i < cpuCycles {
+			nes.APU.Run()
+		}
 		nes.PPU.Run()
 		nes.Mapper.Run()
-	}
-	for i := 0; i < cpuCycles; i++ {
-		nes.APU.Run()
 	}
 	return cpuCycles
 }
