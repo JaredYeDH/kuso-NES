@@ -11,9 +11,7 @@ type Mapper2 struct {
 
 func NewMapper2(c *Cartridge) Mapper {
 	prgBank := len(c.PRG) / 0x4000
-	prgBank1 := 0
-	prgBank2 := prgBank - 1
-	return &Mapper2{c, prgBank, prgBank1, prgBank2}
+	return &Mapper2{c, prgBank, 0, prgBank - 1}
 }
 
 func (m *Mapper2) Read(address uint16) byte {
